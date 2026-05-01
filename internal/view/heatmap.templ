@@ -1,0 +1,62 @@
+package view
+
+import "fmt"
+
+templ Heatmap(d HeatmapData) {
+	<section id="heatmap">
+		@heatmapInner(d)
+	</section>
+}
+
+templ HeatmapOOB(d HeatmapData) {
+	<section id="heatmap" hx-swap-oob="true">
+		@heatmapInner(d)
+	</section>
+}
+
+templ heatmapInner(d HeatmapData) {
+	<div class="heatmap-nav">
+		<a href={ templ.SafeURL(fmt.Sprintf("/?year=%d", d.PrevYear)) } role="button" class="outline">← { fmt.Sprint(d.PrevYear) }</a>
+		<h2>{ fmt.Sprint(d.Year) }</h2>
+		<a href={ templ.SafeURL(fmt.Sprintf("/?year=%d", d.NextYear)) } role="button" class="outline">{ fmt.Sprint(d.NextYear) } →</a>
+	</div>
+	<div class="calendar-grid">
+		for _, month := range d.Months {
+			@MonthBlock(month)
+		}
+	</div>
+	<div class="legend">
+		<span class="day-cell green">≥75%</span>
+		<span class="day-cell yellow">≥50%</span>
+		<span class="day-cell orange">&gt;min</span>
+		<span class="day-cell red">≤min ({ fmt.Sprint(d.MinPresent) })</span>
+	</div>
+}
+
+templ MonthBlock(m MonthData) {
+	<div class="month-block">
+		<div class="month-name">{ m.Name }</div>
+		<div class="weekday-header">
+			<span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+		</div>
+		<div class="month-days">
+			for _, cell := range m.Days {
+				@DaySquare(cell)
+			}
+		</div>
+	</div>
+}
+
+templ DaySquare(c DayCell) {
+	if c.Blank {
+		<span class="day-cell blank"></span>
+	} else {
+		<span
+			class={ "day-cell", c.Color, templ.KV("override", c.HasOverride), templ.KV("weekend", c.IsWeekend) }
+			title={ fmt.Sprintf("%s — %d present", c.Date.Format("02 Jan 2006"), c.Present) }
+			data-date={ c.Date.Format("2006-01-02") }
+		>
+			<span class="day-num">{ fmt.Sprint(c.Date.Day()) }</span>
+		</span>
+	}
+}

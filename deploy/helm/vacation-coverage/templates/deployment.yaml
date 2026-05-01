@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vacation-coverage.fullname" . }}
+  labels:
+    {{- include "vacation-coverage.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "vacation-coverage.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vacation-coverage.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "vacation-coverage.fullname" . }}
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: {{ include "vacation-coverage.fullname" . }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName }}
+                  key: {{ .Values.database.secretKey }}
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 3
+          resources:
+            {{- toYaml .Values.resources.app | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities: { drop: [ALL] }
+
+        - name: oauth-proxy
+          image: {{ .Values.oauthProxy.image }}
+          args:
+            - --https-address=:8443
+            - --provider=openshift
+            - --openshift-service-account={{ include "vacation-coverage.fullname" . }}
+            - --upstream=http://localhost:8080
+            - --tls-cert=/etc/tls/private/tls.crt
+            - --tls-key=/etc/tls/private/tls.key
+            - --cookie-secret-file=/etc/proxy/secrets/cookie-secret
+            - --pass-user-headers=true
+            - --pass-access-token=false
+          ports:
+            - name: https
+              containerPort: 8443
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/tls/private
+              readOnly: true
+            - name: cookie-secret
+              mountPath: /etc/proxy/secrets
+              readOnly: true
+          resources:
+            {{- toYaml .Values.resources.oauthProxy | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities: { drop: [ALL] }
+
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ .Values.oauthProxy.tls.secretName }}
+        - name: cookie-secret
+          secret:
+            secretName: {{ .Values.oauthProxy.cookieSecret.secretName }}
+            items:
+              - key: {{ .Values.oauthProxy.cookieSecret.secretKey }}
+                path: cookie-secret

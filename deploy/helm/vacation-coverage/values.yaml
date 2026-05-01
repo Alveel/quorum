@@ -1,0 +1,50 @@
+image:
+  repository: ghcr.io/alveel/vacation-coverage
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Name of an existing Secret containing the DB connection string.
+# The app reads DATABASE_URL from it.
+database:
+  secretName: vacation-coverage-db
+  secretKey: DATABASE_URL
+
+oauthProxy:
+  image: registry.redhat.io/openshift4/ose-oauth-proxy:v4.15
+  # Existing secret with a 32-byte random cookie secret.
+  cookieSecret:
+    secretName: vacation-coverage-cookie
+    secretKey: cookie-secret
+  # Existing secret with TLS cert + key for the proxy's HTTPS port.
+  tls:
+    secretName: vacation-coverage-tls
+
+route:
+  host: ""   # e.g. vacation.apps.cluster.example.com
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
+# OpenShift groups whose members are granted admin in the app.
+admin:
+  groups: []
+
+team:
+  size: 15
+
+threshold:
+  minPresentDefault: 8
+
+resources:
+  app:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  oauthProxy:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi

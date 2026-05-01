@@ -1,0 +1,97 @@
+package view
+
+import (
+	"fmt"
+	"github.com/alveel/vacation-coverage/internal/vacation"
+)
+
+templ AdminPage(d AdminData) {
+	@Layout("Admin — Vacation Coverage", d.User, true) {
+		<h2>Admin</h2>
+
+		<section>
+			<h3>Settings</h3>
+			<form method="POST" action="/admin/settings">
+				<div class="grid">
+					<label>
+						Minimum people present per day
+						<input type="number" name="min_present" value={ fmt.Sprint(d.Settings.MinPresent) } min="0" required/>
+					</label>
+					<label>
+						Team size
+						<input type="number" name="team_size" value={ fmt.Sprint(d.Settings.TeamSize) } min="1" required/>
+					</label>
+				</div>
+				<label>
+					<input type="checkbox" name="weekend_counts" value="true"
+						if d.Settings.WeekendCounts { checked }/>
+					Count weekends in threshold check
+				</label>
+				<button type="submit">Save settings</button>
+			</form>
+		</section>
+
+		<section>
+			<h3>All active vacations</h3>
+			if len(d.Vacations) == 0 {
+				<p><em>No active vacations.</em></p>
+			} else {
+				<table>
+					<thead>
+						<tr><th>User</th><th>From</th><th>To</th><th>Note</th><th>Status</th><th>Override</th></tr>
+					</thead>
+					<tbody>
+						for _, v := range d.Vacations {
+							<tr>
+								<td>{ userName(v) }</td>
+								<td>{ v.StartDate.Format("02 Jan 2006") }</td>
+								<td>{ v.EndDate.Format("02 Jan 2006") }</td>
+								<td>{ v.Note }</td>
+								<td>{ string(v.Status) }</td>
+								<td>—</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			}
+		</section>
+
+		<section>
+			<h3>Register override vacation</h3>
+			<form method="POST" action="/admin/override">
+				<div class="grid">
+					<label>
+						Username (ID)
+						<input type="text" name="user_id" required/>
+					</label>
+					<label>
+						Override reason
+						<input type="text" name="reason" required/>
+					</label>
+				</div>
+				<div class="grid">
+					<label>
+						From
+						<input type="date" name="start_date" required/>
+					</label>
+					<label>
+						To
+						<input type="date" name="end_date" required/>
+					</label>
+				</div>
+				<label>
+					Note
+					<input type="text" name="note"/>
+				</label>
+				<button type="submit">Register override</button>
+			</form>
+		</section>
+	}
+}
+
+func userName(v vacation.Vacation) string {
+	if v.UserName != "" {
+		return v.UserName
+	}
+	return v.UserID
+}

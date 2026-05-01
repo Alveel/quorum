@@ -1,0 +1,31 @@
+.PHONY: dev test lint templ migrate build image
+
+DEV_DB_URL ?= postgresql://vacation:vacation@127.0.0.1:5432/vacation?sslmode=disable
+
+# Local dev: start postgres, apply migrations, run app on :8080.
+dev:
+	podman-compose up -d db
+	DEV_AUTH_BYPASS=true DEV_USER=devuser DEV_ADMIN=true \
+	  DATABASE_URL=$(DEV_DB_URL) \
+	  go run ./cmd/server
+
+test:
+	go test ./...
+
+lint:
+	golangci-lint run
+
+# Regenerate Go code from *.templ files. Run after editing templates.
+templ:
+	templ generate
+
+# Apply migrations: start the server (which migrates then serves), then Ctrl-C.
+# Or just run `make dev` — migrations run automatically on every startup.
+migrate:
+	DATABASE_URL=$(DEV_DB_URL) go run ./cmd/server
+
+build:
+	CGO_ENABLED=0 go build -o bin/server ./cmd/server
+
+image:
+	podman build -t vacation-coverage:dev .

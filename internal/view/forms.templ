@@ -1,0 +1,107 @@
+package view
+
+import (
+	"fmt"
+	"github.com/alveel/vacation-coverage/internal/vacation"
+)
+
+templ VacationForm() {
+	<section>
+		<h3>Register vacation</h3>
+		<form
+			hx-post="/vacations"
+			hx-target="#form-response"
+			hx-swap="innerHTML"
+		>
+			<div class="grid">
+				<label>
+					From
+					<input type="date" name="start_date" required/>
+				</label>
+				<label>
+					To
+					<input type="date" name="end_date" required/>
+				</label>
+			</div>
+			<label>
+				Note (optional)
+				<input type="text" name="note" placeholder="e.g. holidays"/>
+			</label>
+			<button type="submit">Register</button>
+		</form>
+		<div id="form-response"></div>
+	</section>
+}
+
+templ MyVacations(vacations []vacation.Vacation) {
+	<section id="my-vacations">
+		@myVacationsInner(vacations)
+	</section>
+}
+
+templ MyVacationsOOB(vacations []vacation.Vacation) {
+	<section id="my-vacations" hx-swap-oob="true">
+		@myVacationsInner(vacations)
+	</section>
+}
+
+templ myVacationsInner(vacations []vacation.Vacation) {
+	<h3>My vacations</h3>
+	if len(vacations) == 0 {
+		<p><em>No upcoming vacations registered.</em></p>
+	} else {
+		<table>
+			<thead>
+				<tr><th>From</th><th>To</th><th>Note</th><th>Status</th><th></th></tr>
+			</thead>
+			<tbody>
+				for _, v := range vacations {
+					<tr>
+						<td>{ v.StartDate.Format("02 Jan 2006") }</td>
+						<td>{ v.EndDate.Format("02 Jan 2006") }</td>
+						<td>{ v.Note }</td>
+						<td>{ string(v.Status) }</td>
+						<td>
+							<button
+								hx-delete={ fmt.Sprintf("/vacations/%s", v.ID) }
+								hx-target="#my-vacations"
+								hx-swap="outerHTML"
+								hx-confirm="Cancel this vacation?"
+								class="outline secondary"
+							>Cancel</button>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}
+
+templ FormError(msg string, offendingDates []string) {
+	<div class="error-banner" role="alert">
+		<strong>Denied:</strong> { msg }
+		if len(offendingDates) > 0 {
+			<ul>
+				for _, d := range offendingDates {
+					<li>{ d }</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+templ FormSuccess() {
+	<div class="success-banner" role="alert">Vacation registered.</div>
+}
+
+templ IndexPage(d PageData) {
+	@Layout("Vacation Coverage", d.User, d.IsAdmin) {
+		<div class="index-layout">
+			@Heatmap(d.Heatmap)
+			<aside>
+				@VacationForm()
+				@MyVacations(d.MyVacations)
+			</aside>
+		</div>
+	}
+}
