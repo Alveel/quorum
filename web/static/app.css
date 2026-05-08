@@ -137,6 +137,14 @@
 
 .day-cell:not(.blank) { cursor: pointer; }
 
+/* ── Lang toggle ── */
+.lang-btn {
+  padding: 0.15rem 0.45rem;
+  font-size: 0.8rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
 /* ── Theme toggle ── */
 .theme-btn {
   padding: 0.25rem 0.6rem;

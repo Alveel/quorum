@@ -11,6 +11,7 @@ import (
 
 	"github.com/alveel/vacation-coverage/internal/auth"
 	"github.com/alveel/vacation-coverage/internal/config"
+	"github.com/alveel/vacation-coverage/internal/locale"
 	"github.com/alveel/vacation-coverage/internal/vacation"
 	"github.com/alveel/vacation-coverage/internal/view"
 )
@@ -64,7 +65,7 @@ func (h *handlers) createVacation(w http.ResponseWriter, r *http.Request) {
 	start, end, err := parseDateRange(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		view.FormError(err.Error(), nil).Render(r.Context(), w)
+		view.FormError(locale.T(r.Context(), err.Error()), nil).Render(r.Context(), w)
 		return
 	}
 
@@ -75,7 +76,7 @@ func (h *handlers) createVacation(w http.ResponseWriter, r *http.Request) {
 	}
 	if overlap {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		view.FormError("You already have a vacation overlapping this date range", nil).Render(r.Context(), w)
+		view.FormError(locale.T(r.Context(), "err_overlap"), nil).Render(r.Context(), w)
 		return
 	}
 
@@ -97,11 +98,14 @@ func (h *handlers) createVacation(w http.ResponseWriter, r *http.Request) {
 	if len(offending) > 0 {
 		dates := make([]string, len(offending))
 		for i, d := range offending {
-			dates[i] = d.Format("Mon 02 Jan 2006")
+			dates[i] = locale.FormatDate(r.Context(), d)
 		}
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		view.FormError(
-			fmt.Sprintf("Coverage would drop below minimum (%d) on %d day(s). Discuss with your team.", settings.MinPresent, len(offending)),
+			locale.TP(r.Context(), "err_coverage", len(offending), map[string]any{
+				"Min":   settings.MinPresent,
+				"Count": len(offending),
+			}),
 			dates,
 		).Render(r.Context(), w)
 		return
@@ -169,7 +173,7 @@ func (h *handlers) dayDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	present := settings.TeamSize - len(vacations)
-	view.DayDetail(date.Format("Mon 02 Jan 2006"), vacations, present, settings.TeamSize).Render(r.Context(), w)
+	view.DayDetail(locale.FormatDate(r.Context(), date), vacations, present, settings.TeamSize).Render(r.Context(), w)
 }
 
 func (h *handlers) adminPage(w http.ResponseWriter, r *http.Request) {
@@ -213,7 +217,7 @@ func (h *handlers) adminOverride(w http.ResponseWriter, r *http.Request) {
 	note := r.FormValue("note")
 	start, end, err := parseDateRange(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(w, locale.T(r.Context(), err.Error()), http.StatusUnprocessableEntity)
 		return
 	}
 	if _, err := h.store.CreateOverride(r.Context(), targetUserID, u.ID, note, start, end, reason); err != nil {
@@ -231,14 +235,14 @@ func parseDateRange(r *http.Request) (time.Time, time.Time, error) {
 	}
 	start, err := time.Parse("2006-01-02", r.FormValue("start_date"))
 	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("invalid start date")
+		return time.Time{}, time.Time{}, fmt.Errorf("err_invalid_start")
 	}
 	end, err := time.Parse("2006-01-02", r.FormValue("end_date"))
 	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("invalid end date")
+		return time.Time{}, time.Time{}, fmt.Errorf("err_invalid_end")
 	}
 	if end.Before(start) {
-		return time.Time{}, time.Time{}, fmt.Errorf("end date must be on or after start date")
+		return time.Time{}, time.Time{}, fmt.Errorf("err_end_before_start")
 	}
 	return start, end, nil
 }

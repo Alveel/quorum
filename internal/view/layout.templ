@@ -1,5 +1,7 @@
 package view
 
+import "github.com/alveel/vacation-coverage/internal/locale"
+
 templ Layout(title, user string, isAdmin bool) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -19,13 +21,17 @@ templ Layout(title, user string, isAdmin bool) {
 		<header class="container-fluid">
 			<nav>
 				<ul>
-					<li><strong><a href="/">Vacation Coverage</a></strong></li>
+					<li><strong><a href="/">Leave Coverage</a></strong></li>
 				</ul>
 				<ul>
 					if isAdmin {
-						<li><a href="/admin">Admin</a></li>
+						<li><a href="/admin">{ locale.T(ctx, "nav_admin") }</a></li>
 					}
 					<li>{ user }</li>
+					<li>
+						<a href="/lang/en" class="lang-btn outline contrast">EN</a>
+						<a href="/lang/nl" class="lang-btn outline contrast">NL</a>
+					</li>
 					<li>
 						<button id="theme-toggle" class="outline contrast theme-btn" onclick="toggleTheme()"></button>
 					</li>

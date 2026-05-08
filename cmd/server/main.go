@@ -11,12 +11,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/alveel/vacation-coverage/internal/config"
+	"github.com/alveel/vacation-coverage/internal/locale"
 	"github.com/alveel/vacation-coverage/internal/server"
 	"github.com/alveel/vacation-coverage/internal/store"
 	"github.com/alveel/vacation-coverage/web"
 )
 
 func main() {
+	locale.Init()
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := config.Load()
 

@@ -2,6 +2,8 @@ package view
 
 import (
 	"fmt"
+	"strings"
+	"github.com/alveel/vacation-coverage/internal/locale"
 	"github.com/alveel/vacation-coverage/internal/vacation"
 )
 
@@ -41,7 +43,9 @@ templ MonthBlock(m MonthData) {
 	<div class="month-block">
 		<div class="month-name">{ m.Name }</div>
 		<div class="weekday-header">
-			<span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+			for _, wd := range strings.Split(locale.T(ctx, "weekdays"), ",") {
+				<span>{ wd }</span>
+			}
 		</div>
 		<div class="month-days">
 			for _, cell := range m.Days {
@@ -57,7 +61,7 @@ templ DaySquare(c DayCell) {
 	} else {
 		<span
 			class={ "day-cell", c.Color, templ.KV("override", c.HasOverride), templ.KV("weekend", c.IsWeekend) }
-			title={ fmt.Sprintf("%s — %d present", c.Date.Format("02 Jan 2006"), c.Present) }
+			title={ fmt.Sprintf("%s — %d present", locale.FormatDateShort(ctx, c.Date), c.Present) }
 			data-date={ c.Date.Format("2006-01-02") }
 			hx-get={ fmt.Sprintf("/day/%s", c.Date.Format("2006-01-02")) }
 			hx-target="#day-detail"
@@ -71,17 +75,17 @@ templ DaySquare(c DayCell) {
 templ DayDetail(date string, vacations []vacation.Vacation, present, teamSize int) {
 	<div class="day-detail-panel">
 		<strong>{ date }</strong>
-		<span class="day-detail-count">{ fmt.Sprint(present) } of { fmt.Sprint(teamSize) } present</span>
+		<span class="day-detail-count">{ locale.T(ctx, "present_count", map[string]any{"Present": present, "TeamSize": teamSize}) }</span>
 		if len(vacations) == 0 {
-			<p class="day-detail-empty">Everyone present.</p>
+			<p class="day-detail-empty">{ locale.T(ctx, "everyone_present") }</p>
 		} else {
 			<ul class="day-detail-list">
 				for _, v := range vacations {
 					<li>
 						<span class="day-detail-name">{ v.UserName }</span>
-						<span class="day-detail-period">{ v.StartDate.Format("02 Jan") } – { v.EndDate.Format("02 Jan 2006") }</span>
+						<span class="day-detail-period">{ locale.FormatDateShort(ctx, v.StartDate) } – { locale.FormatDateMedium(ctx, v.EndDate) }</span>
 						if v.Status == vacation.StatusOverridden {
-							<small class="day-detail-override">(override)</small>
+							<small class="day-detail-override">{ locale.T(ctx, "label_override_marker") }</small>
 						}
 					</li>
 				}

@@ -2,12 +2,13 @@ package view
 
 import (
 	"fmt"
+	"github.com/alveel/vacation-coverage/internal/locale"
 	"github.com/alveel/vacation-coverage/internal/vacation"
 )
 
 templ VacationForm() {
 	<section>
-		<h3>Register vacation</h3>
+		<h3>{ locale.T(ctx, "register_leave") }</h3>
 		<form
 			hx-post="/vacations"
 			hx-target="#form-response"
@@ -15,19 +16,19 @@ templ VacationForm() {
 		>
 			<div class="grid">
 				<label>
-					From
+					{ locale.T(ctx, "label_from") }
 					<input type="date" name="start_date" required/>
 				</label>
 				<label>
-					To
+					{ locale.T(ctx, "label_to") }
 					<input type="date" name="end_date" required/>
 				</label>
 			</div>
 			<label>
-				Note (optional)
-				<input type="text" name="note" placeholder="e.g. holidays"/>
+				{ locale.T(ctx, "label_note_optional") }
+				<input type="text" name="note" placeholder={ locale.T(ctx, "placeholder_note") }/>
 			</label>
-			<button type="submit">Register</button>
+			<button type="submit">{ locale.T(ctx, "btn_register") }</button>
 		</form>
 		<div id="form-response"></div>
 	</section>
@@ -46,19 +47,25 @@ templ MyVacationsOOB(vacations []vacation.Vacation) {
 }
 
 templ myVacationsInner(vacations []vacation.Vacation) {
-	<h3>My vacations</h3>
+	<h3>{ locale.T(ctx, "my_leave") }</h3>
 	if len(vacations) == 0 {
-		<p><em>No upcoming vacations registered.</em></p>
+		<p><em>{ locale.T(ctx, "no_leave") }</em></p>
 	} else {
 		<table>
 			<thead>
-				<tr><th>From</th><th>To</th><th>Note</th><th>Status</th><th></th></tr>
+				<tr>
+					<th>{ locale.T(ctx, "col_from") }</th>
+					<th>{ locale.T(ctx, "col_to") }</th>
+					<th>{ locale.T(ctx, "col_note") }</th>
+					<th>{ locale.T(ctx, "col_status") }</th>
+					<th></th>
+				</tr>
 			</thead>
 			<tbody>
 				for _, v := range vacations {
 					<tr>
-						<td>{ v.StartDate.Format("02 Jan 2006") }</td>
-						<td>{ v.EndDate.Format("02 Jan 2006") }</td>
+						<td>{ locale.FormatDateMedium(ctx, v.StartDate) }</td>
+						<td>{ locale.FormatDateMedium(ctx, v.EndDate) }</td>
 						<td>{ v.Note }</td>
 						<td>{ string(v.Status) }</td>
 						<td>
@@ -66,9 +73,9 @@ templ myVacationsInner(vacations []vacation.Vacation) {
 								hx-delete={ fmt.Sprintf("/vacations/%s", v.ID) }
 								hx-target="#my-vacations"
 								hx-swap="outerHTML"
-								hx-confirm="Cancel this vacation?"
+								hx-confirm={ locale.T(ctx, "confirm_cancel") }
 								class="outline secondary"
-							>Cancel</button>
+							>{ locale.T(ctx, "btn_cancel") }</button>
 						</td>
 					</tr>
 				}
@@ -79,7 +86,7 @@ templ myVacationsInner(vacations []vacation.Vacation) {
 
 templ FormError(msg string, offendingDates []string) {
 	<div class="error-banner" role="alert">
-		<strong>Denied:</strong> { msg }
+		<strong>{ locale.T(ctx, "denied_prefix") }</strong> { msg }
 		if len(offendingDates) > 0 {
 			<ul>
 				for _, d := range offendingDates {
@@ -91,11 +98,11 @@ templ FormError(msg string, offendingDates []string) {
 }
 
 templ FormSuccess() {
-	<div class="success-banner" role="alert">Vacation registered.</div>
+	<div class="success-banner" role="alert">{ locale.T(ctx, "leave_registered") }</div>
 }
 
 templ IndexPage(d PageData) {
-	@Layout("Vacation Coverage", d.User, d.IsAdmin) {
+	@Layout("Leave Coverage", d.User, d.IsAdmin) {
 		<div class="index-layout">
 			@Heatmap(d.Heatmap)
 			<aside>

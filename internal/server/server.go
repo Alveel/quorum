@@ -9,6 +9,7 @@ import (
 
 	"github.com/alveel/vacation-coverage/internal/auth"
 	"github.com/alveel/vacation-coverage/internal/config"
+	"github.com/alveel/vacation-coverage/internal/locale"
 )
 
 func New(cfg config.Config, st Storer, staticFS fs.FS) http.Handler {
@@ -24,11 +25,15 @@ func New(cfg config.Config, st Storer, staticFS fs.FS) http.Handler {
 	// Static assets — FS is already sub-rooted at "static/", so strip the URL prefix.
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 
+	// Language switching — no auth required.
+	r.Get("/lang/{code}", locale.SetLang)
+
 	h := &handlers{cfg: cfg, store: st}
 
 	// All other routes require authentication.
 	r.Group(func(r chi.Router) {
 		r.Use(auth.Middleware(cfg))
+		r.Use(locale.Middleware)
 		r.Use(upsertUserMiddleware(st))
 
 		r.Get("/", h.index)

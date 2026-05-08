@@ -2,50 +2,58 @@ package view
 
 import (
 	"fmt"
+	"github.com/alveel/vacation-coverage/internal/locale"
 	"github.com/alveel/vacation-coverage/internal/vacation"
 )
 
 templ AdminPage(d AdminData) {
-	@Layout("Admin — Vacation Coverage", d.User, true) {
-		<h2>Admin</h2>
+	@Layout("Admin — Leave Coverage", d.User, true) {
+		<h2>{ locale.T(ctx, "admin_heading") }</h2>
 
 		<section>
-			<h3>Settings</h3>
+			<h3>{ locale.T(ctx, "settings_heading") }</h3>
 			<form method="POST" action="/admin/settings">
 				<div class="grid">
 					<label>
-						Minimum people present per day
+						{ locale.T(ctx, "setting_min_present") }
 						<input type="number" name="min_present" value={ fmt.Sprint(d.Settings.MinPresent) } min="0" required/>
 					</label>
 					<label>
-						Team size
+						{ locale.T(ctx, "setting_team_size") }
 						<input type="number" name="team_size" value={ fmt.Sprint(d.Settings.TeamSize) } min="1" required/>
 					</label>
 				</div>
 				<label>
 					<input type="checkbox" name="weekend_counts" value="true"
 						if d.Settings.WeekendCounts { checked }/>
-					Count weekends in threshold check
+					{ locale.T(ctx, "setting_weekend_counts") }
 				</label>
-				<button type="submit">Save settings</button>
+				<button type="submit">{ locale.T(ctx, "btn_save_settings") }</button>
 			</form>
 		</section>
 
 		<section>
-			<h3>All active vacations</h3>
+			<h3>{ locale.T(ctx, "all_active_leave") }</h3>
 			if len(d.Vacations) == 0 {
-				<p><em>No active vacations.</em></p>
+				<p><em>{ locale.T(ctx, "no_active_leave") }</em></p>
 			} else {
 				<table>
 					<thead>
-						<tr><th>User</th><th>From</th><th>To</th><th>Note</th><th>Status</th><th>Override</th></tr>
+						<tr>
+							<th>{ locale.T(ctx, "col_user") }</th>
+							<th>{ locale.T(ctx, "col_from") }</th>
+							<th>{ locale.T(ctx, "col_to") }</th>
+							<th>{ locale.T(ctx, "col_note") }</th>
+							<th>{ locale.T(ctx, "col_status") }</th>
+							<th>{ locale.T(ctx, "col_override") }</th>
+						</tr>
 					</thead>
 					<tbody>
 						for _, v := range d.Vacations {
 							<tr>
 								<td>{ userName(v) }</td>
-								<td>{ v.StartDate.Format("02 Jan 2006") }</td>
-								<td>{ v.EndDate.Format("02 Jan 2006") }</td>
+								<td>{ locale.FormatDateMedium(ctx, v.StartDate) }</td>
+								<td>{ locale.FormatDateMedium(ctx, v.EndDate) }</td>
 								<td>{ v.Note }</td>
 								<td>{ string(v.Status) }</td>
 								<td>—</td>
@@ -57,33 +65,33 @@ templ AdminPage(d AdminData) {
 		</section>
 
 		<section>
-			<h3>Register override vacation</h3>
+			<h3>{ locale.T(ctx, "register_override") }</h3>
 			<form method="POST" action="/admin/override">
 				<div class="grid">
 					<label>
-						Username (ID)
+						{ locale.T(ctx, "label_username_id") }
 						<input type="text" name="user_id" required/>
 					</label>
 					<label>
-						Override reason
+						{ locale.T(ctx, "label_override_reason") }
 						<input type="text" name="reason" required/>
 					</label>
 				</div>
 				<div class="grid">
 					<label>
-						From
+						{ locale.T(ctx, "label_from") }
 						<input type="date" name="start_date" required/>
 					</label>
 					<label>
-						To
+						{ locale.T(ctx, "label_to") }
 						<input type="date" name="end_date" required/>
 					</label>
 				</div>
 				<label>
-					Note
+					{ locale.T(ctx, "col_note") }
 					<input type="text" name="note"/>
 				</label>
-				<button type="submit">Register override</button>
+				<button type="submit">{ locale.T(ctx, "btn_register_override") }</button>
 			</form>
 		</section>
 	}
