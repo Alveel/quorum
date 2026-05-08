@@ -39,7 +39,7 @@ func TestCreateAbsence_InvalidDates_Returns422(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("want 422, got %d", resp.StatusCode)
 	}
@@ -61,7 +61,7 @@ func TestCreateAbsence_ThresholdDenied_Returns422(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("want 422, got %d", resp.StatusCode)
 	}
@@ -90,7 +90,7 @@ func TestCreateAbsence_Success_Returns200WithOOBSwaps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -121,7 +121,7 @@ func TestCreateAbsence_StoreError_Returns500(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Errorf("want 500, got %d", resp.StatusCode)
 	}
@@ -138,7 +138,7 @@ func TestCancelAbsence_InvalidUUID_Returns400(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("want 400, got %d", resp.StatusCode)
 	}
@@ -157,7 +157,7 @@ func TestCancelAbsence_StoreError_Returns500(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Errorf("want 500, got %d", resp.StatusCode)
 	}
@@ -172,7 +172,7 @@ func TestCancelAbsence_Success_RendersFragments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -196,7 +196,7 @@ func TestDayDetail_BadDate_Returns400(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("want 400, got %d", resp.StatusCode)
 	}
@@ -221,7 +221,7 @@ func TestDayDetail_Success_RendersPanel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -247,7 +247,7 @@ func TestDayDetail_StoreError_Returns500(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Errorf("want 500, got %d", resp.StatusCode)
 	}

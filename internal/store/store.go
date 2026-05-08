@@ -44,19 +44,19 @@ func RunMigrations(dbURL string) error {
 	if err != nil {
 		return fmt.Errorf("open sql db for migrations: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("create migrate driver: %w", err)
 	}
-	defer driver.Close()
+	defer func() { _ = driver.Close() }()
 
 	src, err := iofs.New(migrations.FS, ".")
 	if err != nil {
 		return fmt.Errorf("create migrate source: %w", err)
 	}
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 
 	m, err := migrate.NewWithInstance(
 		"iofs", src,
