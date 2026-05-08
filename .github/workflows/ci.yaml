@@ -43,7 +43,7 @@ jobs:
       - name: Generate templ
         run: make templ
 
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v9.2.0
         with:
           version: latest
 
