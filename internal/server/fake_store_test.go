@@ -6,23 +6,23 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/alveel/quorum/internal/vacation"
+	"github.com/alveel/quorum/internal/absence"
 )
 
 type fakeStore struct {
-	settings      vacation.Settings
+	settings      absence.Settings
 	settingsErr   error
 	perDay        map[time.Time]int
 	perDayErr     error
-	onDay         []vacation.Vacation
+	onDay         []absence.Absence
 	onDayErr      error
-	myVacations   []vacation.Vacation
+	myAbsences    []absence.Absence
 	myVacErr      error
-	allActive     []vacation.Vacation
+	allActive     []absence.Absence
 	allActiveErr  error
-	createVac     vacation.Vacation
+	createVac     absence.Absence
 	createVacErr  error
-	createOvr     vacation.Vacation
+	createOvr     absence.Absence
 	createOvrErr  error
 	cancelErr     error
 	upsertErr     error
@@ -33,7 +33,7 @@ type fakeStore struct {
 	hasOverlapErr error
 }
 
-func (f *fakeStore) GetSettings(_ context.Context) (vacation.Settings, error) {
+func (f *fakeStore) GetSettings(_ context.Context) (absence.Settings, error) {
 	return f.settings, f.settingsErr
 }
 
@@ -41,34 +41,34 @@ func (f *fakeStore) UpdateSetting(_ context.Context, _ string, _ any, _ string) 
 	return nil
 }
 
-func (f *fakeStore) VacationsPerDay(_ context.Context, _, _ time.Time) (map[time.Time]int, error) {
+func (f *fakeStore) AbsencePerDay(_ context.Context, _, _ time.Time) (map[time.Time]int, error) {
 	if f.perDay == nil {
 		return map[time.Time]int{}, f.perDayErr
 	}
 	return f.perDay, f.perDayErr
 }
 
-func (f *fakeStore) VacationsOnDay(_ context.Context, _ time.Time) ([]vacation.Vacation, error) {
+func (f *fakeStore) AbsenceOnDay(_ context.Context, _ time.Time) ([]absence.Absence, error) {
 	return f.onDay, f.onDayErr
 }
 
-func (f *fakeStore) ListMyVacations(_ context.Context, _ string) ([]vacation.Vacation, error) {
-	return f.myVacations, f.myVacErr
+func (f *fakeStore) ListMyAbsences(_ context.Context, _ string) ([]absence.Absence, error) {
+	return f.myAbsences, f.myVacErr
 }
 
-func (f *fakeStore) ListAllActive(_ context.Context) ([]vacation.Vacation, error) {
+func (f *fakeStore) ListAllActive(_ context.Context) ([]absence.Absence, error) {
 	return f.allActive, f.allActiveErr
 }
 
-func (f *fakeStore) CreateVacation(_ context.Context, _, _, _ string, _, _ time.Time) (vacation.Vacation, error) {
+func (f *fakeStore) CreateAbsence(_ context.Context, _, _, _ string, _, _ time.Time) (absence.Absence, error) {
 	return f.createVac, f.createVacErr
 }
 
-func (f *fakeStore) CreateOverride(_ context.Context, _, _, _ string, _, _ time.Time, _ string) (vacation.Vacation, error) {
+func (f *fakeStore) CreateOverride(_ context.Context, _, _, _ string, _, _ time.Time, _ string) (absence.Absence, error) {
 	return f.createOvr, f.createOvrErr
 }
 
-func (f *fakeStore) CancelVacation(_ context.Context, _ uuid.UUID, _ string) error {
+func (f *fakeStore) CancelAbsence(_ context.Context, _ uuid.UUID, _ string) error {
 	return f.cancelErr
 }
 

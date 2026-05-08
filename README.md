@@ -1,6 +1,6 @@
 # Quorum
 
-Internal tool for a ~15-person team to register vacations and avoid coverage gaps. Each calendar day is color-coded by how many team members are present. Requesting a vacation that would push any day below the configured minimum is hard-denied; an admin can override.
+Internal tool for a ~15-person team to register leave and avoid coverage gaps. Each calendar day is color-coded by how many team members are present. Requesting a leave that would push any day below the configured minimum is hard-denied; an admin can override.
 
 ## User guide
 
@@ -15,25 +15,25 @@ The home page shows a year calendar. Each day is colored:
 | Orange | Above minimum, but close                   |
 | Red    | At or below minimum — new requests blocked |
 
-Days with admin-overridden vacations show a hatched overlay. Hover over any day to see the date and exact count.
+Days with admin-overridden leave show a hatched overlay. Hover over any day to see the date and exact count.
 
 Navigate between years with the ← / → buttons.
 
-### Registering a vacation
+### Registering leave
 
 Fill in **From**, **To**, and an optional **Note**, then click **Register**. If any day in the range would drop below the minimum, the request is rejected and the offending dates are listed. Talk to your team or an admin about coverage before resubmitting.
 
-### Cancelling a vacation
+### Cancelling leave
 
-Your active vacations appear below the registration form. Click **Cancel** next to any entry to remove it.
+Your active leave appears below the registration form. Click **Cancel** next to any entry to remove it.
 
 ### Admin panel (`/admin`)
 
 Admins (members of the configured OpenShift group) can:
 
 - **Change settings** — minimum people present, team size, whether weekends count toward the threshold.
-- **View all active vacations** — all approved and overridden vacations for the whole team.
-- **Register an override vacation** — bypass the threshold for a specific user. Requires a reason. Overridden vacations still count toward the presence total; the heatmap shows them with a hatched overlay.
+- **View all active leave** — all approved and overridden leave for the whole team.
+- **Register an override leave** — bypass the threshold for a specific user. Requires a reason. Overridden leave still count toward the presence total; the heatmap shows them with a hatched overlay.
 
 ---
 
@@ -47,19 +47,19 @@ Admins (members of the configured OpenShift group) can:
 
 ### Secrets to create before deploying
 
-| Secret name (default) | Key | Content |
-|---|---|---|
-| `vacation-coverage-db` | `DATABASE_URL` | PostgreSQL connection string, e.g. `postgres://user:pass@host:5432/db?sslmode=require` |
-| `vacation-coverage-cookie` | `cookie-secret` | 32 random bytes (base64), e.g. `openssl rand -base64 32` |
-| `vacation-coverage-tls` | `tls.crt`, `tls.key` | TLS certificate and key for the oauth-proxy HTTPS port |
+| Secret name (default) | Key                  | Content                                                                                |
+|-----------------------|----------------------|----------------------------------------------------------------------------------------|
+| `quorum-db`           | `DATABASE_URL`       | PostgreSQL connection string, e.g. `postgres://user:pass@host:5432/db?sslmode=require` |
+| `quorum-cookie`       | `cookie-secret`      | 32 random bytes (base64), e.g. `openssl rand -base64 32`                               |
+| `quorum-tls`          | `tls.crt`, `tls.key` | TLS certificate and key for the oauth-proxy HTTPS port                                 |
 
 The chart references these secrets by name; it does not create them. This prevents secrets from appearing in rendered manifests or git history.
 
 ### Helm install
 
 ```sh
-helm upgrade --install vacation-coverage deploy/helm/vacation-coverage \
-  --set route.host=vacation.apps.cluster.example.com \
+helm upgrade --install quorum deploy/helm/quorum \
+  --set route.host=quorum.apps.cluster.example.com \
   --set admin.groups='{platform-team}' \
   --set team.size=15 \
   --set threshold.minPresentDefault=8
@@ -67,23 +67,23 @@ helm upgrade --install vacation-coverage deploy/helm/vacation-coverage \
 
 Key `values.yaml` knobs:
 
-| Value | Default | Description |
-|---|---|---|
-| `image.repository` | `ghcr.io/alveel/vacation-coverage` | Container image |
-| `image.tag` | `latest` | Image tag |
-| `database.secretName` | `vacation-coverage-db` | Secret holding the DB URL |
-| `oauthProxy.image` | `registry.redhat.io/openshift4/ose-oauth-proxy:v4.15` | Sidecar image |
-| `oauthProxy.cookieSecret.secretName` | `vacation-coverage-cookie` | Cookie secret |
-| `oauthProxy.tls.secretName` | `vacation-coverage-tls` | TLS secret |
-| `route.host` | _(required)_ | Public hostname |
-| `admin.groups` | `[]` | OpenShift groups granted admin |
-| `team.size` | `15` | Default team size |
-| `threshold.minPresentDefault` | `8` | Default minimum present |
+| Value                                | Default                                               | Description                    |
+|--------------------------------------|-------------------------------------------------------|--------------------------------|
+| `image.repository`                   | `ghcr.io/alveel/quorum`                               | Container image                |
+| `image.tag`                          | `latest`                                              | Image tag                      |
+| `database.secretName`                | `quorum-db`                                           | Secret holding the DB URL      |
+| `oauthProxy.image`                   | `registry.redhat.io/openshift4/ose-oauth-proxy:v4.15` | Sidecar image                  |
+| `oauthProxy.cookieSecret.secretName` | `quorum-cookie`                                       | Cookie secret                  |
+| `oauthProxy.tls.secretName`          | `quorum-tls`                                          | TLS secret                     |
+| `route.host`                         | _(required)_                                          | Public hostname                |
+| `admin.groups`                       | `[]`                                                  | OpenShift groups granted admin |
+| `team.size`                          | `15`                                                  | Default team size              |
+| `threshold.minPresentDefault`        | `8`                                                   | Default minimum present        |
 
 Preview manifests without installing:
 
 ```sh
-helm template deploy/helm/vacation-coverage --values deploy/helm/vacation-coverage/values.yaml
+helm template deploy/helm/quorum --values deploy/helm/quorum/values.yaml
 ```
 
 ### Environment variables (app container)
@@ -101,7 +101,7 @@ helm template deploy/helm/vacation-coverage --values deploy/helm/vacation-covera
 
 ### Migrations
 
-Migrations run automatically on startup before serving traffic. No separate Job is needed. The current schema creates: `users`, `vacations`, `settings`, `audit_log`.
+Migrations run automatically on startup before serving traffic. No separate Job is needed. The current schema creates: `users`, `absence`, `settings`, `audit_log`.
 
 ### Health probes
 
@@ -157,7 +157,7 @@ The app is available at `http://localhost:8080`.
 Run a single test:
 
 ```sh
-go test ./internal/vacation -run TestThreshold_DeniesWhenBelowMin
+go test ./internal/absence -run TestThreshold_DeniesWhenBelowMin
 ```
 
 ### Project layout
@@ -165,11 +165,11 @@ go test ./internal/vacation -run TestThreshold_DeniesWhenBelowMin
 ```
 cmd/server/          main; wires config, store, server
 internal/
+  absence/           domain types, present() and threshold logic
   auth/              header parsing, admin check, dev bypass
   config/            env-driven config loading
   server/            chi router, middleware, HTTP handlers
   store/             PostgreSQL queries
-  vacation/          domain types, present() and threshold logic
   view/              templ components (heatmap, forms, admin)
 migrations/          numbered SQL files, embedded in binary
 web/static/          htmx.min.js, pico.min.css, app.css
@@ -183,19 +183,19 @@ Views use [`templ`](https://templ.guide/) — typed Go templates compiled to Go.
 
 ### Key invariant: one `Present()` function
 
-`vacation.Present()` in `internal/vacation/threshold.go` is used by both the threshold check (deny/allow) and the heatmap coloring. Do not duplicate or diverge this logic — users would see green days that are actually blocked, or vice versa.
+`absence.Present()` in `internal/absence/threshold.go` is used by both the threshold check (deny/allow) and the heatmap coloring. Do not duplicate or diverge this logic — users would see green days that are actually blocked, or vice versa.
 
 ### Threshold logic
 
 ```
-present(d) = team_size − count(approved + overridden vacations covering d)
+present(d) = team_size − count(approved + overridden absence covering d)
 ```
 
 When evaluating a new request: subtract one more for the requester. If `present(d) < min_present` for any day `d` in the range → deny and return offending dates.
 
 Weekend days are excluded from the check when `weekend_counts = false` (the default).
 
-Admin override skips the threshold check, sets `status = 'overridden'`, and writes an `audit_log` row. Overridden vacations still count toward `present()`.
+Admin override skips the threshold check, sets `status = 'overridden'`, and writes an `audit_log` row. Overridden leave still counts toward `present()`.
 
 ### CI
 

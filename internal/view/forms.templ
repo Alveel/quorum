@@ -3,14 +3,14 @@ package view
 import (
 	"fmt"
 	"github.com/alveel/quorum/internal/locale"
-	"github.com/alveel/quorum/internal/vacation"
+	"github.com/alveel/quorum/internal/absence"
 )
 
-templ VacationForm() {
+templ AbsenceForm() {
 	<section>
-		<h3>{ locale.T(ctx, "register_leave") }</h3>
+		<h3>{ locale.T(ctx, "register_absence") }</h3>
 		<form
-			hx-post="/vacations"
+			hx-post="/absences"
 			hx-target="#form-response"
 			hx-swap="innerHTML"
 		>
@@ -34,22 +34,22 @@ templ VacationForm() {
 	</section>
 }
 
-templ MyVacations(vacations []vacation.Vacation) {
-	<section id="my-vacations">
-		@myVacationsInner(vacations)
+templ MyAbsences(absences []absence.Absence) {
+	<section id="my-absences">
+		@myAbsencesInner(absences)
 	</section>
 }
 
-templ MyVacationsOOB(vacations []vacation.Vacation) {
-	<section id="my-vacations" hx-swap-oob="true">
-		@myVacationsInner(vacations)
+templ MyAbsencesOOB(absences []absence.Absence) {
+	<section id="my-absences" hx-swap-oob="true">
+		@myAbsencesInner(absences)
 	</section>
 }
 
-templ myVacationsInner(vacations []vacation.Vacation) {
-	<h3>{ locale.T(ctx, "my_leave") }</h3>
-	if len(vacations) == 0 {
-		<p><em>{ locale.T(ctx, "no_leave") }</em></p>
+templ myAbsencesInner(absences []absence.Absence) {
+	<h3>{ locale.T(ctx, "my_absence") }</h3>
+	if len(absences) == 0 {
+		<p><em>{ locale.T(ctx, "no_absence") }</em></p>
 	} else {
 		<table>
 			<thead>
@@ -62,7 +62,7 @@ templ myVacationsInner(vacations []vacation.Vacation) {
 				</tr>
 			</thead>
 			<tbody>
-				for _, v := range vacations {
+				for _, v := range absences {
 					<tr>
 						<td>{ locale.FormatDateMedium(ctx, v.StartDate) }</td>
 						<td>{ locale.FormatDateMedium(ctx, v.EndDate) }</td>
@@ -70,8 +70,8 @@ templ myVacationsInner(vacations []vacation.Vacation) {
 						<td>{ string(v.Status) }</td>
 						<td>
 							<button
-								hx-delete={ fmt.Sprintf("/vacations/%s", v.ID) }
-								hx-target="#my-vacations"
+								hx-delete={ fmt.Sprintf("/absences/%s", v.ID) }
+								hx-target="#my-absences"
 								hx-swap="outerHTML"
 								hx-confirm={ locale.T(ctx, "confirm_cancel") }
 								class="outline secondary"
@@ -98,7 +98,7 @@ templ FormError(msg string, offendingDates []string) {
 }
 
 templ FormSuccess() {
-	<div class="success-banner" role="alert">{ locale.T(ctx, "leave_registered") }</div>
+	<div class="success-banner" role="alert">{ locale.T(ctx, "absence_registered") }</div>
 }
 
 templ IndexPage(d PageData) {
@@ -106,8 +106,8 @@ templ IndexPage(d PageData) {
 		<div class="index-layout">
 			@Heatmap(d.Heatmap)
 			<aside>
-				@VacationForm()
-				@MyVacations(d.MyVacations)
+				@AbsenceForm()
+				@MyAbsences(d.MyAbsences)
 			</aside>
 		</div>
 	}

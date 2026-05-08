@@ -3,7 +3,7 @@ package view
 import (
 	"fmt"
 	"github.com/alveel/quorum/internal/locale"
-	"github.com/alveel/quorum/internal/vacation"
+	"github.com/alveel/quorum/internal/absence"
 )
 
 templ AdminPage(d AdminData) {
@@ -33,9 +33,9 @@ templ AdminPage(d AdminData) {
 		</section>
 
 		<section>
-			<h3>{ locale.T(ctx, "all_active_leave") }</h3>
-			if len(d.Vacations) == 0 {
-				<p><em>{ locale.T(ctx, "no_active_leave") }</em></p>
+			<h3>{ locale.T(ctx, "all_active_absences") }</h3>
+			if len(d.Absences) == 0 {
+				<p><em>{ locale.T(ctx, "no_active_absences") }</em></p>
 			} else {
 				<table>
 					<thead>
@@ -49,7 +49,7 @@ templ AdminPage(d AdminData) {
 						</tr>
 					</thead>
 					<tbody>
-						for _, v := range d.Vacations {
+						for _, v := range d.Absences {
 							<tr>
 								<td>{ userName(v) }</td>
 								<td>{ locale.FormatDateMedium(ctx, v.StartDate) }</td>
@@ -97,7 +97,7 @@ templ AdminPage(d AdminData) {
 	}
 }
 
-func userName(v vacation.Vacation) string {
+func userName(v absence.Absence) string {
 	if v.UserName != "" {
 		return v.UserName
 	}

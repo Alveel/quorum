@@ -1,6 +1,6 @@
 .PHONY: dev test test-integration lint templ migrate build image
 
-DEV_DB_URL ?= postgresql://vacation:vacation@127.0.0.1:5432/vacation?sslmode=disable
+DEV_DB_URL ?= postgresql://quorum:quorum@127.0.0.1:5432/quorum?sslmode=disable
 
 # Local dev: start postgres, apply migrations, run app on :8080.
 dev:

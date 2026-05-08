@@ -1,4 +1,4 @@
-package vacation
+package absence
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ func TestPresent_EmptyMap(t *testing.T) {
 	}
 }
 
-func TestPresent_SomeOnVacation(t *testing.T) {
+func TestPresent_SomeOnAbsence(t *testing.T) {
 	m := map[time.Time]int{day(2026, 1, 5): 3}
 	p := Present(day(2026, 1, 5), m, 15)
 	if p != 12 {
@@ -46,7 +46,7 @@ func TestColor_Boundaries(t *testing.T) {
 }
 
 func TestCheckRequest_DeniesWhenBelowMin(t *testing.T) {
-	// 14 people already on vacation on the 5th → 1 present
+	// 14 people already have absence on the 5th → 1 present
 	onVac := map[time.Time]int{day(2026, 7, 7): 14}
 	offending := CheckRequest(day(2026, 7, 7), day(2026, 7, 7), onVac, 15, 8, true)
 	if len(offending) == 0 {
@@ -55,7 +55,7 @@ func TestCheckRequest_DeniesWhenBelowMin(t *testing.T) {
 }
 
 func TestCheckRequest_AllowsWhenAboveMin(t *testing.T) {
-	// 6 on vacation → 9 present; requester would bring to 8 = exactly min → allowed (< min means deny)
+	// 6 have absence → 9 present; requester would bring to 8 = exactly min → allowed (< min means deny)
 	onVac := map[time.Time]int{day(2026, 7, 7): 6}
 	offending := CheckRequest(day(2026, 7, 7), day(2026, 7, 7), onVac, 15, 8, true)
 	if len(offending) != 0 {

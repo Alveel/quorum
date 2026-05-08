@@ -38,8 +38,8 @@ func New(cfg config.Config, st Storer, staticFS fs.FS) http.Handler {
 
 		r.Get("/", h.index)
 		r.Get("/day/{date}", h.dayDetail)
-		r.Post("/vacations", h.createVacation)
-		r.Delete("/vacations/{id}", h.cancelVacation)
+		r.Post("/absences", h.createAbsence)
+		r.Delete("/absences/{id}", h.cancelAbsence)
 
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequireAdmin)

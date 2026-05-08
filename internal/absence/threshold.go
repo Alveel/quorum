@@ -1,12 +1,12 @@
-package vacation
+package absence
 
 import "time"
 
 // Present returns how many team members are present on day d,
-// given a map of how many people are already on vacation per day.
+// given a map of how many people are already on absence per day.
 // It assumes d is already truncated to the start of the day.
-func Present(d time.Time, onVacation map[time.Time]int, teamSize int) int {
-	return teamSize - onVacation[d]
+func Present(d time.Time, onAbsence map[time.Time]int, teamSize int) int {
+	return teamSize - onAbsence[d]
 }
 
 // Color returns the CSS color token for a given presence count.
@@ -33,7 +33,7 @@ func Color(present, teamSize, minPresent int) string {
 // CheckRequest returns the subset of days in [start, end] where approving the
 // new request would push coverage below minPresent. weekendCounts=false skips
 // Saturday and Sunday from threshold evaluation.
-func CheckRequest(start, end time.Time, onVacation map[time.Time]int, teamSize, minPresent int, weekendCounts bool) []time.Time {
+func CheckRequest(start, end time.Time, onAbsence map[time.Time]int, teamSize, minPresent int, weekendCounts bool) []time.Time {
 	var offending []time.Time
 	curr := truncateDay(start)
 	last := truncateDay(end)
@@ -43,7 +43,7 @@ func CheckRequest(start, end time.Time, onVacation map[time.Time]int, teamSize, 
 			curr = curr.AddDate(0, 0, 1)
 			continue
 		}
-		present := Present(curr, onVacation, teamSize) - 1 // -1 for the requester
+		present := Present(curr, onAbsence, teamSize) - 1 // -1 for the requester
 		if present < minPresent {
 			offending = append(offending, curr)
 		}

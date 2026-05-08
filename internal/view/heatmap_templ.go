@@ -10,8 +10,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
+	"github.com/alveel/quorum/internal/absence"
 	"github.com/alveel/quorum/internal/locale"
-	"github.com/alveel/quorum/internal/vacation"
 	"strings"
 )
 
@@ -387,7 +387,7 @@ func DaySquare(c DayCell) templ.Component {
 	})
 }
 
-func DayDetail(date string, vacations []vacation.Vacation, present, teamSize int) templ.Component {
+func DayDetail(date string, absences []absence.Absence, present, teamSize int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -438,7 +438,7 @@ func DayDetail(date string, vacations []vacation.Vacation, present, teamSize int
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if len(vacations) == 0 {
+		if len(absences) == 0 {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<p class=\"day-detail-empty\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -461,7 +461,7 @@ func DayDetail(date string, vacations []vacation.Vacation, present, teamSize int
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			for _, v := range vacations {
+			for _, v := range absences {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<li><span class=\"day-detail-name\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -505,7 +505,7 @@ func DayDetail(date string, vacations []vacation.Vacation, present, teamSize int
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if v.Status == vacation.StatusOverridden {
+				if v.Status == absence.StatusOverridden {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<small class=\"day-detail-override\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/alveel/quorum/internal/vacation"
+	"github.com/alveel/quorum/internal/absence"
 )
 
 type Store struct {
@@ -85,10 +85,10 @@ func (s *Store) UpsertUser(ctx context.Context, id, email, displayName string) e
 }
 
 // GetSettings returns all settings as a Settings struct.
-func (s *Store) GetSettings(ctx context.Context) (vacation.Settings, error) {
+func (s *Store) GetSettings(ctx context.Context) (absence.Settings, error) {
 	rows, err := s.pool.Query(ctx, `SELECT key, value FROM settings`)
 	if err != nil {
-		return vacation.Settings{}, err
+		return absence.Settings{}, err
 	}
 	defer rows.Close()
 
@@ -97,12 +97,12 @@ func (s *Store) GetSettings(ctx context.Context) (vacation.Settings, error) {
 		var key string
 		var val json.RawMessage
 		if err := rows.Scan(&key, &val); err != nil {
-			return vacation.Settings{}, err
+			return absence.Settings{}, err
 		}
 		m[key] = val
 	}
 
-	var s2 vacation.Settings
+	var s2 absence.Settings
 	if v, ok := m["min_present"]; ok {
 		json.Unmarshal(v, &s2.MinPresent)
 	}
@@ -144,34 +144,34 @@ func (s *Store) UpdateSetting(ctx context.Context, key string, value any, actorI
 	return tx.Commit(ctx)
 }
 
-// CreateVacation inserts a new vacation with status='approved'.
-func (s *Store) CreateVacation(ctx context.Context, userID, createdBy, note string, start, end time.Time) (vacation.Vacation, error) {
-	return s.insertVacation(ctx, userID, createdBy, note, start, end, vacation.StatusApproved, "")
+// CreateAbsence inserts a new absence with status='approved'.
+func (s *Store) CreateAbsence(ctx context.Context, userID, createdBy, note string, start, end time.Time) (absence.Absence, error) {
+	return s.insertAbsence(ctx, userID, createdBy, note, start, end, absence.StatusApproved, "")
 }
 
-// CreateOverride inserts a vacation bypassing threshold, with status='overridden'.
-func (s *Store) CreateOverride(ctx context.Context, userID, actorID, note string, start, end time.Time, reason string) (vacation.Vacation, error) {
-	v, err := s.insertVacation(ctx, userID, actorID, note, start, end, vacation.StatusOverridden, reason)
+// CreateOverride inserts a absence bypassing threshold, with status='overridden'.
+func (s *Store) CreateOverride(ctx context.Context, userID, actorID, note string, start, end time.Time, reason string) (absence.Absence, error) {
+	v, err := s.insertAbsence(ctx, userID, actorID, note, start, end, absence.StatusOverridden, reason)
 	return v, err
 }
 
-func (s *Store) insertVacation(ctx context.Context, userID, createdBy, note string, start, end time.Time, status vacation.Status, overrideReason string) (vacation.Vacation, error) {
+func (s *Store) insertAbsence(ctx context.Context, userID, createdBy, note string, start, end time.Time, status absence.Status, overrideReason string) (absence.Absence, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return vacation.Vacation{}, err
+		return absence.Absence{}, err
 	}
 	defer tx.Rollback(ctx)
 
-	var v vacation.Vacation
+	var v absence.Absence
 	err = tx.QueryRow(ctx, `
-		INSERT INTO leave (user_id, start_date, end_date, note, status, created_by)
+		INSERT INTO absence (user_id, start_date, end_date, note, status, created_by)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, user_id, start_date, end_date, note, status, created_at, created_by
 	`, userID, start, end, note, status, createdBy).Scan(
 		&v.ID, &v.UserID, &v.StartDate, &v.EndDate, &v.Note, &v.Status, &v.CreatedAt, &v.CreatedBy,
 	)
 	if err != nil {
-		return vacation.Vacation{}, err
+		return absence.Absence{}, err
 	}
 
 	payload, _ := json.Marshal(map[string]string{
@@ -182,34 +182,34 @@ func (s *Store) insertVacation(ctx context.Context, userID, createdBy, note stri
 	_, err = tx.Exec(ctx, `
 		INSERT INTO audit_log (actor_id, action, target_id, payload)
 		VALUES ($1, $2, $3, $4)
-	`, createdBy, "create_vacation", v.ID.String(), json.RawMessage(payload))
+	`, createdBy, "create_absence", v.ID.String(), json.RawMessage(payload))
 	if err != nil {
-		return vacation.Vacation{}, err
+		return absence.Absence{}, err
 	}
 
 	return v, tx.Commit(ctx)
 }
 
-// CancelVacation marks a vacation as cancelled. Only the owning user can cancel.
-func (s *Store) CancelVacation(ctx context.Context, id uuid.UUID, userID string) error {
+// CancelAbsence marks a absence as cancelled. Only the owning user can cancel.
+func (s *Store) CancelAbsence(ctx context.Context, id uuid.UUID, userID string) error {
 	tag, err := s.pool.Exec(ctx, `
-		UPDATE leave SET status = 'cancelled'
+		UPDATE absence SET status = 'cancelled'
 		WHERE id = $1 AND user_id = $2 AND status IN ('approved', 'overridden')
 	`, id, userID)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("vacation not found or not cancellable")
+		return fmt.Errorf("absence not found or not cancellable")
 	}
 	return nil
 }
 
-// ListMyVacations returns non-cancelled vacations for a user, newest first.
-func (s *Store) ListMyVacations(ctx context.Context, userID string) ([]vacation.Vacation, error) {
+// ListMyAbsences returns non-cancelled absences for a user, newest first.
+func (s *Store) ListMyAbsences(ctx context.Context, userID string) ([]absence.Absence, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, user_id, start_date, end_date, note, status, created_at, created_by
-		FROM leave
+		FROM absence
 		WHERE user_id = $1 AND status != 'cancelled'
 		ORDER BY start_date DESC
 	`, userID)
@@ -217,14 +217,14 @@ func (s *Store) ListMyVacations(ctx context.Context, userID string) ([]vacation.
 		return nil, err
 	}
 	defer rows.Close()
-	return scanVacations(rows)
+	return scanAbsences(rows)
 }
 
-// ListAllActive returns all non-cancelled vacations sorted by start date.
-func (s *Store) ListAllActive(ctx context.Context) ([]vacation.Vacation, error) {
+// ListAllActive returns all non-cancelled absences sorted by start date.
+func (s *Store) ListAllActive(ctx context.Context) ([]absence.Absence, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT v.id, v.user_id, u.display_name, v.start_date, v.end_date, v.note, v.status, v.created_at, v.created_by
-		FROM leave v
+		FROM absence v
 		JOIN users u ON u.id = v.user_id
 		WHERE v.status IN ('approved', 'overridden')
 		ORDER BY v.start_date
@@ -233,14 +233,14 @@ func (s *Store) ListAllActive(ctx context.Context) ([]vacation.Vacation, error) 
 		return nil, err
 	}
 	defer rows.Close()
-	return scanVacationsWithName(rows)
+	return scanAbsencesWithName(rows)
 }
 
-// VacationsOnDay returns all active vacations covering a specific date, with user display name.
-func (s *Store) VacationsOnDay(ctx context.Context, date time.Time) ([]vacation.Vacation, error) {
+// AbsencesOnDay returns all active absences covering a specific date, with user display name.
+func (s *Store) AbsenceOnDay(ctx context.Context, date time.Time) ([]absence.Absence, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT v.id, v.user_id, u.display_name, v.start_date, v.end_date, v.note, v.status, v.created_at, v.created_by
-		FROM leave v
+		FROM absence v
 		JOIN users u ON u.id = v.user_id
 		WHERE v.status IN ('approved', 'overridden')
 		  AND $1 BETWEEN v.start_date AND v.end_date
@@ -250,16 +250,16 @@ func (s *Store) VacationsOnDay(ctx context.Context, date time.Time) ([]vacation.
 		return nil, err
 	}
 	defer rows.Close()
-	return scanVacationsWithName(rows)
+	return scanAbsencesWithName(rows)
 }
 
-// VacationsPerDay returns a map of date → on-vacation count for the given range.
+// AbsencePerDay returns a map of date → on-absence count for the given range.
 // Used by both threshold checking and heatmap rendering.
-func (s *Store) VacationsPerDay(ctx context.Context, from, to time.Time) (map[time.Time]int, error) {
+func (s *Store) AbsencePerDay(ctx context.Context, from, to time.Time) (map[time.Time]int, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT gs::date, COUNT(v.id)
 		FROM generate_series($1::date, $2::date, '1 day'::interval) gs
-		LEFT JOIN leave v
+		LEFT JOIN absence v
 		  ON v.status IN ('approved', 'overridden')
 		  AND gs BETWEEN v.start_date AND v.end_date
 		GROUP BY gs
@@ -282,14 +282,14 @@ func (s *Store) VacationsPerDay(ctx context.Context, from, to time.Time) (map[ti
 	return m, rows.Err()
 }
 
-// HasOverlap checks if a user already has a non-cancelled vacation
+// HasOverlap checks if a user already has a non-cancelled absence
 // overlapping the given date range.
 func (s *Store) HasOverlap(ctx context.Context, userID string, start, end time.Time) (bool, error) {
 	var exists bool
 	err := s.pool.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1
-			FROM leave
+			FROM absence
 			WHERE user_id = $1
 		  		AND status != 'cancelled'
 		  		AND end_date >= $2
@@ -310,10 +310,10 @@ type rowScanner interface {
 	Err() error
 }
 
-func scanVacations(rows rowScanner) ([]vacation.Vacation, error) {
-	var out []vacation.Vacation
+func scanAbsences(rows rowScanner) ([]absence.Absence, error) {
+	var out []absence.Absence
 	for rows.Next() {
-		var v vacation.Vacation
+		var v absence.Absence
 		if err := rows.Scan(&v.ID, &v.UserID, &v.StartDate, &v.EndDate, &v.Note, &v.Status, &v.CreatedAt, &v.CreatedBy); err != nil {
 			return nil, err
 		}
@@ -322,10 +322,10 @@ func scanVacations(rows rowScanner) ([]vacation.Vacation, error) {
 	return out, rows.Err()
 }
 
-func scanVacationsWithName(rows rowScanner) ([]vacation.Vacation, error) {
-	var out []vacation.Vacation
+func scanAbsencesWithName(rows rowScanner) ([]absence.Absence, error) {
+	var out []absence.Absence
 	for rows.Next() {
-		var v vacation.Vacation
+		var v absence.Absence
 		if err := rows.Scan(&v.ID, &v.UserID, &v.UserName, &v.StartDate, &v.EndDate, &v.Note, &v.Status, &v.CreatedAt, &v.CreatedBy); err != nil {
 			return nil, err
 		}

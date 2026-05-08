@@ -20,7 +20,7 @@ oauthProxy:
     secretName: quorum-tls
 
 route:
-  host: ""   # e.g. vacation.apps.cluster.example.com
+  host: ""   # e.g. quorum.apps.cluster.example.com
   tls:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect

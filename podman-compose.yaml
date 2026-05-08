@@ -2,15 +2,15 @@ services:
   db:
     image: dhi.io/postgres:18-alpine3.22
     environment:
-      POSTGRES_USER: vacation
-      POSTGRES_PASSWORD: vacation
-      POSTGRES_DB: vacation
+      POSTGRES_USER: quorum
+      POSTGRES_PASSWORD: quorum
+      POSTGRES_DB: quorum
     ports:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vacation"]
+      test: ["CMD-SHELL", "pg_isready -U quorum"]
       interval: 5s
       timeout: 5s
       retries: 5

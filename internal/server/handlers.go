@@ -9,10 +9,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/alveel/quorum/internal/absence"
 	"github.com/alveel/quorum/internal/auth"
 	"github.com/alveel/quorum/internal/config"
 	"github.com/alveel/quorum/internal/locale"
-	"github.com/alveel/quorum/internal/vacation"
 	"github.com/alveel/quorum/internal/view"
 )
 
@@ -38,29 +38,29 @@ func (h *handlers) index(w http.ResponseWriter, r *http.Request) {
 
 	yearStart := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	yearEnd := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
-	perDay, err := h.store.VacationsPerDay(r.Context(), yearStart, yearEnd)
+	perDay, err := h.store.AbsencePerDay(r.Context(), yearStart, yearEnd)
 	if err != nil {
 		http.Error(w, "load heatmap: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	myVacations, err := h.store.ListMyVacations(r.Context(), u.ID)
+	myAbsence, err := h.store.ListMyAbsences(r.Context(), u.ID)
 	if err != nil {
-		http.Error(w, "load vacations: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "load absence: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	heatmap := buildHeatmap(year, perDay, settings)
 	page := view.PageData{
-		User:        u.ID,
-		IsAdmin:     u.Admin,
-		Heatmap:     heatmap,
-		MyVacations: myVacations,
+		User:       u.ID,
+		IsAdmin:    u.Admin,
+		Heatmap:    heatmap,
+		MyAbsences: myAbsence,
 	}
 	view.IndexPage(page).Render(r.Context(), w)
 }
 
-func (h *handlers) createVacation(w http.ResponseWriter, r *http.Request) {
+func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 	u := auth.FromContext(r.Context())
 	start, end, err := parseDateRange(r)
 	if err != nil {
@@ -88,13 +88,13 @@ func (h *handlers) createVacation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	perDay, err := h.store.VacationsPerDay(r.Context(), start, end)
+	perDay, err := h.store.AbsencePerDay(r.Context(), start, end)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	offending := vacation.CheckRequest(start, end, perDay, settings.TeamSize, settings.MinPresent, settings.WeekendCounts)
+	offending := absence.CheckRequest(start, end, perDay, settings.TeamSize, settings.MinPresent, settings.WeekendCounts)
 	if len(offending) > 0 {
 		dates := make([]string, len(offending))
 		for i, d := range offending {
@@ -111,32 +111,32 @@ func (h *handlers) createVacation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.store.CreateVacation(r.Context(), u.ID, u.ID, note, start, end); err != nil {
+	if _, err := h.store.CreateAbsence(r.Context(), u.ID, u.ID, note, start, end); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// OOB-swap: update heatmap + my-vacations list in one response.
+	// OOB-swap: update heatmap + my-absence list in one response.
 	year := start.Year()
 	yearStart := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	yearEnd := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
-	perDay, _ = h.store.VacationsPerDay(r.Context(), yearStart, yearEnd)
-	myVacations, _ := h.store.ListMyVacations(r.Context(), u.ID)
+	perDay, _ = h.store.AbsencePerDay(r.Context(), yearStart, yearEnd)
+	myAbsences, _ := h.store.ListMyAbsences(r.Context(), u.ID)
 
 	// OOB elements appended after primary response content.
 	view.FormSuccess().Render(r.Context(), w)
 	view.HeatmapOOB(buildHeatmap(year, perDay, settings)).Render(r.Context(), w)
-	view.MyVacationsOOB(myVacations).Render(r.Context(), w)
+	view.MyAbsencesOOB(myAbsences).Render(r.Context(), w)
 }
 
-func (h *handlers) cancelVacation(w http.ResponseWriter, r *http.Request) {
+func (h *handlers) cancelAbsence(w http.ResponseWriter, r *http.Request) {
 	u := auth.FromContext(r.Context())
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	if err := h.store.CancelVacation(r.Context(), id, u.ID); err != nil {
+	if err := h.store.CancelAbsence(r.Context(), id, u.ID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -145,10 +145,10 @@ func (h *handlers) cancelVacation(w http.ResponseWriter, r *http.Request) {
 	yearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
 	yearEnd := time.Date(now.Year(), 12, 31, 0, 0, 0, 0, time.UTC)
 	settings, _ := h.store.GetSettings(r.Context())
-	perDay, _ := h.store.VacationsPerDay(r.Context(), yearStart, yearEnd)
-	myVacations, _ := h.store.ListMyVacations(r.Context(), u.ID)
+	perDay, _ := h.store.AbsencePerDay(r.Context(), yearStart, yearEnd)
+	myAbsences, _ := h.store.ListMyAbsences(r.Context(), u.ID)
 
-	view.MyVacations(myVacations).Render(r.Context(), w)
+	view.MyAbsences(myAbsences).Render(r.Context(), w)
 	view.HeatmapOOB(buildHeatmap(now.Year(), perDay, settings)).Render(r.Context(), w)
 }
 
@@ -166,24 +166,24 @@ func (h *handlers) dayDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vacations, err := h.store.VacationsOnDay(r.Context(), date)
+	absences, err := h.store.AbsenceOnDay(r.Context(), date)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	present := settings.TeamSize - len(vacations)
-	view.DayDetail(locale.FormatDate(r.Context(), date), vacations, present, settings.TeamSize).Render(r.Context(), w)
+	present := settings.TeamSize - len(absences)
+	view.DayDetail(locale.FormatDate(r.Context(), date), absences, present, settings.TeamSize).Render(r.Context(), w)
 }
 
 func (h *handlers) adminPage(w http.ResponseWriter, r *http.Request) {
 	u := auth.FromContext(r.Context())
 	settings, _ := h.store.GetSettings(r.Context())
-	vacations, _ := h.store.ListAllActive(r.Context())
+	absences, _ := h.store.ListAllActive(r.Context())
 	view.AdminPage(view.AdminData{
-		User:      u.ID,
-		Settings:  settings,
-		Vacations: vacations,
+		User:     u.ID,
+		Settings: settings,
+		Absences: absences,
 	}).Render(r.Context(), w)
 }
 
@@ -247,7 +247,7 @@ func parseDateRange(r *http.Request) (time.Time, time.Time, error) {
 	return start, end, nil
 }
 
-func buildHeatmap(year int, perDay map[time.Time]int, s vacation.Settings) view.HeatmapData {
+func buildHeatmap(year int, perDay map[time.Time]int, s absence.Settings) view.HeatmapData {
 	months := make([]view.MonthData, 12)
 	for i := range months {
 		m := time.Month(i + 1)
@@ -259,11 +259,11 @@ func buildHeatmap(year int, perDay map[time.Time]int, s vacation.Settings) view.
 			days = append(days, view.DayCell{Blank: true})
 		}
 		for d := first; d.Month() == m; d = d.AddDate(0, 0, 1) {
-			present := vacation.Present(d, perDay, s.TeamSize)
+			present := absence.Present(d, perDay, s.TeamSize)
 			days = append(days, view.DayCell{
 				Date:      d,
 				Present:   present,
-				Color:     vacation.Color(present, s.TeamSize, s.MinPresent),
+				Color:     absence.Color(present, s.TeamSize, s.MinPresent),
 				IsWeekend: d.Weekday() == time.Saturday || d.Weekday() == time.Sunday,
 			})
 		}

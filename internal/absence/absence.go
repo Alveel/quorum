@@ -1,4 +1,4 @@
-package vacation
+package absence
 
 import (
 	"time"
@@ -14,7 +14,7 @@ const (
 	StatusCancelled  Status = "cancelled"
 )
 
-type Vacation struct {
+type Absence struct {
 	ID        uuid.UUID
 	UserID    string
 	UserName  string

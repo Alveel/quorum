@@ -108,13 +108,13 @@ func TestUpdateSetting_PersistsAndAudits(t *testing.T) {
 	}
 }
 
-// --- VacationsPerDay ---
+// --- AbsencePerDay ---
 
-func TestVacationsPerDay_NoVacations_AllZero(t *testing.T) {
+func TestAbsencePerDay_NoAbsences_AllZero(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 
-	m, err := st.VacationsPerDay(ctx, day(2026, 7, 1), day(2026, 7, 5))
+	m, err := st.AbsencePerDay(ctx, day(2026, 7, 1), day(2026, 7, 5))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -125,14 +125,14 @@ func TestVacationsPerDay_NoVacations_AllZero(t *testing.T) {
 	}
 }
 
-func TestVacationsPerDay_SingleVacation(t *testing.T) {
+func TestAbsencePerDay_SingleAbsence(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 	insertUser(t, st, "alice", "alice@example.com")
 
-	st.CreateVacation(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 5))
+	st.CreateAbsence(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 5))
 
-	m, err := st.VacationsPerDay(ctx, day(2026, 6, 29), day(2026, 7, 7))
+	m, err := st.AbsencePerDay(ctx, day(2026, 6, 29), day(2026, 7, 7))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -149,41 +149,41 @@ func TestVacationsPerDay_SingleVacation(t *testing.T) {
 	}
 }
 
-func TestVacationsPerDay_CancelledIgnored(t *testing.T) {
+func TestAbsencePerDay_CancelledIgnored(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 	insertUser(t, st, "alice", "alice@example.com")
 
-	v, _ := st.CreateVacation(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 1))
-	st.CancelVacation(ctx, v.ID, "alice")
+	v, _ := st.CreateAbsence(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 1))
+	st.CancelAbsence(ctx, v.ID, "alice")
 
-	m, _ := st.VacationsPerDay(ctx, day(2026, 7, 1), day(2026, 7, 1))
+	m, _ := st.AbsencePerDay(ctx, day(2026, 7, 1), day(2026, 7, 1))
 	if m[day(2026, 7, 1)] != 0 {
-		t.Errorf("cancelled vacation should not count, got %d", m[day(2026, 7, 1)])
+		t.Errorf("cancelled absence should not count, got %d", m[day(2026, 7, 1)])
 	}
 }
 
-func TestVacationsPerDay_OverriddenCounts(t *testing.T) {
+func TestAbsencePerDay_OverriddenCounts(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 	insertUser(t, st, "alice", "alice@example.com")
 
 	st.CreateOverride(ctx, "alice", "admin", "", day(2026, 7, 1), day(2026, 7, 1), "reason")
 
-	m, _ := st.VacationsPerDay(ctx, day(2026, 7, 1), day(2026, 7, 1))
+	m, _ := st.AbsencePerDay(ctx, day(2026, 7, 1), day(2026, 7, 1))
 	if m[day(2026, 7, 1)] != 1 {
-		t.Errorf("overridden vacation should count as 1, got %d", m[day(2026, 7, 1)])
+		t.Errorf("overridden absence should count as 1, got %d", m[day(2026, 7, 1)])
 	}
 }
 
-// --- CreateVacation ---
+// --- CreateAbsence ---
 
-func TestCreateVacation_ReturnsVacationWithID(t *testing.T) {
+func TestCreateAbsence_ReturnsAbsenceWithID(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 	insertUser(t, st, "alice", "alice@example.com")
 
-	v, err := st.CreateVacation(ctx, "alice", "alice", "holiday", day(2026, 7, 1), day(2026, 7, 5))
+	v, err := st.CreateAbsence(ctx, "alice", "alice", "holiday", day(2026, 7, 1), day(2026, 7, 5))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -195,12 +195,12 @@ func TestCreateVacation_ReturnsVacationWithID(t *testing.T) {
 	}
 }
 
-func TestCreateVacation_WritesAuditLog(t *testing.T) {
+func TestCreateAbsence_WritesAuditLog(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 	insertUser(t, st, "alice", "alice@example.com")
 
-	v, _ := st.CreateVacation(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 1))
+	v, _ := st.CreateAbsence(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 1))
 
 	var action, targetID string
 	err := testPool.QueryRow(ctx, `
@@ -209,59 +209,59 @@ func TestCreateVacation_WritesAuditLog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("audit_log query: %v", err)
 	}
-	if action != "create_vacation" {
-		t.Errorf("action: want create_vacation, got %q", action)
+	if action != "create_absence" {
+		t.Errorf("action: want create_absence, got %q", action)
 	}
 	if targetID != v.ID.String() {
 		t.Errorf("target_id: want %s, got %q", v.ID, targetID)
 	}
 }
 
-// --- CancelVacation ---
+// --- CancelAbsence ---
 
-func TestCancelVacation_OwnVacation_Succeeds(t *testing.T) {
+func TestCancelAbsence_OwnAbsence_Succeeds(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 	insertUser(t, st, "alice", "alice@example.com")
 
-	v, _ := st.CreateVacation(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 1))
-	if err := st.CancelVacation(ctx, v.ID, "alice"); err != nil {
+	v, _ := st.CreateAbsence(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 1))
+	if err := st.CancelAbsence(ctx, v.ID, "alice"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	var status string
-	testPool.QueryRow(ctx, `SELECT status FROM leave WHERE id = $1`, v.ID).Scan(&status)
+	testPool.QueryRow(ctx, `SELECT status FROM absence WHERE id = $1`, v.ID).Scan(&status)
 	if status != "cancelled" {
 		t.Errorf("status: want cancelled, got %q", status)
 	}
 }
 
-func TestCancelVacation_OtherUsersVacation_Fails(t *testing.T) {
+func TestCancelAbsence_OtherUsersAbsence_Fails(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 	insertUser(t, st, "alice", "alice@example.com")
 	insertUser(t, st, "bob", "bob@example.com")
 
-	v, _ := st.CreateVacation(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 1))
-	err := st.CancelVacation(ctx, v.ID, "bob")
+	v, _ := st.CreateAbsence(ctx, "alice", "alice", "", day(2026, 7, 1), day(2026, 7, 1))
+	err := st.CancelAbsence(ctx, v.ID, "bob")
 	if err == nil {
-		t.Fatal("expected error when bob tries to cancel alice's vacation")
+		t.Fatal("expected error when bob tries to cancel alice's absence")
 	}
 
 	var status string
-	testPool.QueryRow(ctx, `SELECT status FROM leave WHERE id = $1`, v.ID).Scan(&status)
+	testPool.QueryRow(ctx, `SELECT status FROM absence WHERE id = $1`, v.ID).Scan(&status)
 	if status != "approved" {
 		t.Errorf("status should still be approved, got %q", status)
 	}
 }
 
-func TestCancelVacation_NonexistentID_Fails(t *testing.T) {
+func TestCancelAbsence_NonexistentID_Fails(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 
 	fakeID := uuid.MustParse("00000000-0000-0000-0000-000000000099")
-	err := st.CancelVacation(ctx, fakeID, "alice")
+	err := st.CancelAbsence(ctx, fakeID, "alice")
 	if err == nil {
-		t.Fatal("expected error for nonexistent vacation")
+		t.Fatal("expected error for nonexistent absence")
 	}
 }

@@ -3,16 +3,16 @@ package view
 import (
 	"time"
 
-	"github.com/alveel/quorum/internal/vacation"
+	"github.com/alveel/quorum/internal/absence"
 )
 
 type DayCell struct {
-	Date     time.Time
-	Present  int
-	Color    string // "green" | "yellow" | "orange" | "red"
+	Date        time.Time
+	Present     int
+	Color       string // "green" | "yellow" | "orange" | "red"
 	HasOverride bool
-	IsWeekend bool
-	Blank    bool // padding before month starts
+	IsWeekend   bool
+	Blank       bool // padding before month starts
 }
 
 type MonthData struct {
@@ -32,14 +32,14 @@ type HeatmapData struct {
 }
 
 type PageData struct {
-	User      string
-	IsAdmin   bool
-	Heatmap   HeatmapData
-	MyVacations []vacation.Vacation
+	User       string
+	IsAdmin    bool
+	Heatmap    HeatmapData
+	MyAbsences []absence.Absence
 }
 
 type AdminData struct {
 	User     string
-	Settings vacation.Settings
-	Vacations []vacation.Vacation
+	Settings absence.Settings
+	Absences []absence.Absence
 }

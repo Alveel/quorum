@@ -5,7 +5,7 @@ CREATE TABLE users (
                        created_at   timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE leave (
+CREATE TABLE absence (
                        id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
                        user_id    text        NOT NULL REFERENCES users(id),
                        start_date date        NOT NULL,
@@ -18,8 +18,8 @@ CREATE TABLE leave (
                        CONSTRAINT valid_range CHECK (end_date >= start_date)
 );
 
-CREATE INDEX ON leave (user_id);
-CREATE INDEX ON leave (start_date, end_date) WHERE status IN ('approved', 'overridden');
+CREATE INDEX ON absence (user_id);
+CREATE INDEX ON absence (start_date, end_date) WHERE status IN ('approved', 'overridden');
 
 CREATE TABLE settings (
                           key        text        PRIMARY KEY,

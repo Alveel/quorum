@@ -3,7 +3,7 @@
 Guidance to Claude Code (claude.ai/code) for this repo.
 
 ## What this is
-Small internal tool, ~15-person team. Register vacations, avoid coverage gaps. Each calendar day colored by people-present count (green → yellow → orange → red). Registration pushing any day below admin-configured **minimum present** = **hard-denied**; **admin** can override.
+Small internal tool, ~15-person team. Register leave, avoid coverage gaps. Each calendar day colored by people-present count (green → yellow → orange → red). Registration pushing any day below admin-configured **minimum present** = **hard-denied**; **admin** can override.
 
 ## Stack at a glance
 - **Go** + **chi** + **templ** + **HTMX** — server-rendered, no JS build pipeline
@@ -19,9 +19,9 @@ make templ        # regenerate templ files (run after editing *.templ)
 make migrate      # apply migrations against $DATABASE_URL
 make build        # static binary into ./bin/server
 make image        # docker build of the runtime image
-helm template deploy/helm/vacation-coverage   # render manifests for review
+helm template deploy/helm/quorum   # render manifests for review
 ```
-Single test: `go test ./internal/vacation -run TestThreshold_DeniesWhenBelowMin`.
+Single test: `go test ./internal/leave -run TestThreshold_DeniesWhenBelowMin`.
 
 ## Architecture notes that aren't obvious from the code
 
@@ -35,10 +35,10 @@ Local dev: `DEV_AUTH_BYPASS=true` + `DEV_USER=<name>` + optional `DEV_ADMIN=true
 Admin role = group claim: user is admin iff any `X-Forwarded-Groups` value is in comma-separated `ADMIN_GROUPS` env var. No per-user admin flag in app — group membership is source of truth.
 
 ### One `present(d)` function, two consumers
-Threshold check (denial) and heatmap coloring **must** use same `present(d int) (count int)` in `internal/vacation`. Divergence = users see "green" days that are actually blocked, or vice versa. Keep single shared function.
+Threshold check (denial) and heatmap coloring **must** use same `present(d int) (count int)` in `internal/leave`. Divergence = users see "green" days that are actually blocked, or vice versa. Keep single shared function.
 
 ### Overrides change status, not counts
-Admin overrides set `vacations.status = 'overridden'`, write `audit_log` row. Overridden vacations **do** count against `present(d)` like any approved vacation — override only bypassed *creation* check. UI shows hatched overlay so team spots intentionally-thin days.
+Admin overrides set `leave.status = 'overridden'`, write `audit_log` row. Overridden leave **do** count against `present(d)` like any approved leave — override only bypassed *creation* check. UI shows hatched overlay so team spots intentionally-thin days.
 
 ### Migrations on startup
 App applies pending migrations on boot before serving traffic. Don't run separate `Job`; chart relies on single Deployment. If migrations need gating (e.g. destructive change), introduce separate sub-command before adding job infrastructure.
@@ -47,13 +47,13 @@ App applies pending migrations on boot before serving traffic. Don't run separat
 - `cmd/server/` — main; wires config, store, server
 - `internal/config` — env loading
 - `internal/auth` — header parsing, admin check, dev bypass
-- `internal/vacation` — domain types and single `present(d)` / threshold logic
+- `internal/leave` — domain types and single `present(d)` / threshold logic
 - `internal/store` — Postgres queries
 - `internal/server` — chi router, middleware, handlers
 - `internal/view` — templ components (heatmap, forms, admin)
 - `migrations/` — numbered SQL files, embedded
 - `web/static/` — htmx, css
-- `deploy/helm/vacation-coverage/` — chart with app + oauth-proxy sidecar
+- `deploy/helm/leave-coverage/` — chart with app + oauth-proxy sidecar
 
 ## Deployment notes
 - `ServiceAccount` carries `serviceaccounts.openshift.io/oauth-redirectreference.primary` pointing at Route — without it, SA can't act as OAuth client.

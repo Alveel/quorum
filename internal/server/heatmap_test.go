@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alveel/quorum/internal/vacation"
+	"github.com/alveel/quorum/internal/absence"
 	"github.com/alveel/quorum/internal/view"
 )
 
 func emptyPerDay() map[time.Time]int { return map[time.Time]int{} }
 
-func defaultSettings() vacation.Settings {
-	return vacation.Settings{TeamSize: 15, MinPresent: 8}
+func defaultSettings() absence.Settings {
+	return absence.Settings{TeamSize: 15, MinPresent: 8}
 }
 
 func countBlanks(days []view.DayCell) int {
@@ -42,7 +42,7 @@ func TestBuildHeatmap_AlwaysReturns12Months(t *testing.T) {
 }
 
 func TestBuildHeatmap_MetadataFields(t *testing.T) {
-	h := buildHeatmap(2026, emptyPerDay(), vacation.Settings{TeamSize: 12, MinPresent: 5})
+	h := buildHeatmap(2026, emptyPerDay(), absence.Settings{TeamSize: 12, MinPresent: 5})
 	if h.Year != 2026 {
 		t.Errorf("Year: want 2026, got %d", h.Year)
 	}
@@ -133,7 +133,7 @@ func TestBuildHeatmap_WeekendFlag(t *testing.T) {
 	}
 }
 
-// 14 people on vacation on Jan 5 → present=1 < min=8 → Color="red".
+// 14 people have absence on Jan 5 → present=1 < min=8 → Color="red".
 func TestBuildHeatmap_CellColorFromPerDay(t *testing.T) {
 	jan5 := time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)
 	perDay := map[time.Time]int{jan5: 14}

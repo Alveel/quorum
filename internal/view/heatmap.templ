@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"github.com/alveel/quorum/internal/locale"
-	"github.com/alveel/quorum/internal/vacation"
+	"github.com/alveel/quorum/internal/absence"
 )
 
 templ Heatmap(d HeatmapData) {
@@ -72,19 +72,19 @@ templ DaySquare(c DayCell) {
 	}
 }
 
-templ DayDetail(date string, vacations []vacation.Vacation, present, teamSize int) {
+templ DayDetail(date string, absences []absence.Absence, present, teamSize int) {
 	<div class="day-detail-panel">
 		<strong>{ date }</strong>
 		<span class="day-detail-count">{ locale.T(ctx, "present_count", map[string]any{"Present": present, "TeamSize": teamSize}) }</span>
-		if len(vacations) == 0 {
+		if len(absences) == 0 {
 			<p class="day-detail-empty">{ locale.T(ctx, "everyone_present") }</p>
 		} else {
 			<ul class="day-detail-list">
-				for _, v := range vacations {
+				for _, v := range absences {
 					<li>
 						<span class="day-detail-name">{ v.UserName }</span>
 						<span class="day-detail-period">{ locale.FormatDateShort(ctx, v.StartDate) } – { locale.FormatDateMedium(ctx, v.EndDate) }</span>
-						if v.Status == vacation.StatusOverridden {
+						if v.Status == absence.StatusOverridden {
 							<small class="day-detail-override">{ locale.T(ctx, "label_override_marker") }</small>
 						}
 					</li>
