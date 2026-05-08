@@ -12,13 +12,13 @@ Small internal tool, ~15-person team. Register leave, avoid coverage gaps. Each 
 
 ## Common commands
 ```sh
-make dev          # runs postgres via docker-compose + the app on :8080 (DEV_USER bypass)
+make dev          # runs postgres via podman-compose + the app on :8080 (DEV_USER bypass)
 make test         # go test ./...
 make lint         # golangci-lint run
 make templ        # regenerate templ files (run after editing *.templ)
 make migrate      # apply migrations against $DATABASE_URL
 make build        # static binary into ./bin/server
-make image        # docker build of the runtime image
+make image        # podman build of the runtime image
 helm template deploy/helm/quorum   # render manifests for review
 ```
 Single test: `go test ./internal/leave -run TestThreshold_DeniesWhenBelowMin`.
@@ -53,7 +53,12 @@ App applies pending migrations on boot before serving traffic. Don't run separat
 - `internal/view` — templ components (heatmap, forms, admin)
 - `migrations/` — numbered SQL files, embedded
 - `web/static/` — htmx, css
-- `deploy/helm/leave-coverage/` — chart with app + oauth-proxy sidecar
+- `deploy/helm/quorum/` — chart with app + oauth-proxy sidecar
+
+## CI/CD
+- GitHub Actions: `.github/workflows/ci.yaml` — jobs: `test`, `lint`, `build-image` (main only)
+- Image pushed to `ghcr.io/alveel/quorum` tagged `:latest` + `:<sha>`
+- Renovate (`renovate.json`) tracks Go modules, Actions versions, Containerfile base images
 
 ## Deployment notes
 - `ServiceAccount` carries `serviceaccounts.openshift.io/oauth-redirectreference.primary` pointing at Route — without it, SA can't act as OAuth client.
