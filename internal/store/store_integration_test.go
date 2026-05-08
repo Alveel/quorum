@@ -230,7 +230,7 @@ func TestCancelVacation_OwnVacation_Succeeds(t *testing.T) {
 	}
 
 	var status string
-	testPool.QueryRow(ctx, `SELECT status FROM vacations WHERE id = $1`, v.ID).Scan(&status)
+	testPool.QueryRow(ctx, `SELECT status FROM leave WHERE id = $1`, v.ID).Scan(&status)
 	if status != "cancelled" {
 		t.Errorf("status: want cancelled, got %q", status)
 	}
@@ -249,7 +249,7 @@ func TestCancelVacation_OtherUsersVacation_Fails(t *testing.T) {
 	}
 
 	var status string
-	testPool.QueryRow(ctx, `SELECT status FROM vacations WHERE id = $1`, v.ID).Scan(&status)
+	testPool.QueryRow(ctx, `SELECT status FROM leave WHERE id = $1`, v.ID).Scan(&status)
 	if status != "approved" {
 		t.Errorf("status should still be approved, got %q", status)
 	}

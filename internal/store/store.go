@@ -164,7 +164,7 @@ func (s *Store) insertVacation(ctx context.Context, userID, createdBy, note stri
 
 	var v vacation.Vacation
 	err = tx.QueryRow(ctx, `
-		INSERT INTO vacations (user_id, start_date, end_date, note, status, created_by)
+		INSERT INTO leave (user_id, start_date, end_date, note, status, created_by)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, user_id, start_date, end_date, note, status, created_at, created_by
 	`, userID, start, end, note, status, createdBy).Scan(
@@ -193,7 +193,7 @@ func (s *Store) insertVacation(ctx context.Context, userID, createdBy, note stri
 // CancelVacation marks a vacation as cancelled. Only the owning user can cancel.
 func (s *Store) CancelVacation(ctx context.Context, id uuid.UUID, userID string) error {
 	tag, err := s.pool.Exec(ctx, `
-		UPDATE vacations SET status = 'cancelled'
+		UPDATE leave SET status = 'cancelled'
 		WHERE id = $1 AND user_id = $2 AND status IN ('approved', 'overridden')
 	`, id, userID)
 	if err != nil {
@@ -209,7 +209,7 @@ func (s *Store) CancelVacation(ctx context.Context, id uuid.UUID, userID string)
 func (s *Store) ListMyVacations(ctx context.Context, userID string) ([]vacation.Vacation, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, user_id, start_date, end_date, note, status, created_at, created_by
-		FROM vacations
+		FROM leave
 		WHERE user_id = $1 AND status != 'cancelled'
 		ORDER BY start_date DESC
 	`, userID)
@@ -224,7 +224,7 @@ func (s *Store) ListMyVacations(ctx context.Context, userID string) ([]vacation.
 func (s *Store) ListAllActive(ctx context.Context) ([]vacation.Vacation, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT v.id, v.user_id, u.display_name, v.start_date, v.end_date, v.note, v.status, v.created_at, v.created_by
-		FROM vacations v
+		FROM leave v
 		JOIN users u ON u.id = v.user_id
 		WHERE v.status IN ('approved', 'overridden')
 		ORDER BY v.start_date
@@ -240,7 +240,7 @@ func (s *Store) ListAllActive(ctx context.Context) ([]vacation.Vacation, error) 
 func (s *Store) VacationsOnDay(ctx context.Context, date time.Time) ([]vacation.Vacation, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT v.id, v.user_id, u.display_name, v.start_date, v.end_date, v.note, v.status, v.created_at, v.created_by
-		FROM vacations v
+		FROM leave v
 		JOIN users u ON u.id = v.user_id
 		WHERE v.status IN ('approved', 'overridden')
 		  AND $1 BETWEEN v.start_date AND v.end_date
@@ -259,7 +259,7 @@ func (s *Store) VacationsPerDay(ctx context.Context, from, to time.Time) (map[ti
 	rows, err := s.pool.Query(ctx, `
 		SELECT gs::date, COUNT(v.id)
 		FROM generate_series($1::date, $2::date, '1 day'::interval) gs
-		LEFT JOIN vacations v
+		LEFT JOIN leave v
 		  ON v.status IN ('approved', 'overridden')
 		  AND gs BETWEEN v.start_date AND v.end_date
 		GROUP BY gs
@@ -289,7 +289,7 @@ func (s *Store) HasOverlap(ctx context.Context, userID string, start, end time.T
 	err := s.pool.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1
-			FROM vacations
+			FROM leave
 			WHERE user_id = $1
 		  		AND status != 'cancelled'
 		  		AND end_date >= $2
