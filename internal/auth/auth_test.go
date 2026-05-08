@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/alveel/vacation-coverage/internal/config"
+	"github.com/alveel/quorum/internal/config"
 )
 
 func TestMiddleware_DevBypass(t *testing.T) {

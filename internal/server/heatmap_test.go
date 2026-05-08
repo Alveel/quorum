@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alveel/vacation-coverage/internal/vacation"
-	"github.com/alveel/vacation-coverage/internal/view"
+	"github.com/alveel/quorum/internal/vacation"
+	"github.com/alveel/quorum/internal/view"
 )
 
 func emptyPerDay() map[time.Time]int { return map[time.Time]int{} }

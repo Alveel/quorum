@@ -10,11 +10,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/alveel/vacation-coverage/internal/config"
-	"github.com/alveel/vacation-coverage/internal/locale"
-	"github.com/alveel/vacation-coverage/internal/server"
-	"github.com/alveel/vacation-coverage/internal/store"
-	"github.com/alveel/vacation-coverage/web"
+	"github.com/alveel/quorum/internal/config"
+	"github.com/alveel/quorum/internal/locale"
+	"github.com/alveel/quorum/internal/server"
+	"github.com/alveel/quorum/internal/store"
+	"github.com/alveel/quorum/web"
 )
 
 func main() {

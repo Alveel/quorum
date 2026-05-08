@@ -1,6 +1,6 @@
 package view
 
-import "github.com/alveel/vacation-coverage/internal/locale"
+import "github.com/alveel/quorum/internal/locale"
 
 templ Layout(title, user string, isAdmin bool) {
 	<!DOCTYPE html>
@@ -21,7 +21,7 @@ templ Layout(title, user string, isAdmin bool) {
 		<header class="container-fluid">
 			<nav>
 				<ul>
-					<li><strong><a href="/">Leave Coverage</a></strong></li>
+					<li><strong><a href="/">Quorum</a></strong></li>
 				</ul>
 				<ul>
 					if isAdmin {

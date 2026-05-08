@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "vacation-coverage.fullname" . }}
+  name: {{ include "quorum.fullname" . }}
   labels:
-    {{- include "vacation-coverage.labels" . | nindent 4 }}
+    {{- include "quorum.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "vacation-coverage.selectorLabels" . | nindent 6 }}
+      {{- include "quorum.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "vacation-coverage.selectorLabels" . | nindent 8 }}
+        {{- include "quorum.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "vacation-coverage.fullname" . }}
+      serviceAccountName: {{ include "quorum.fullname" . }}
       containers:
         - name: app
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -24,7 +24,7 @@ spec:
               containerPort: 8080
           envFrom:
             - configMapRef:
-                name: {{ include "vacation-coverage.fullname" . }}
+                name: {{ include "quorum.fullname" . }}
           env:
             - name: DATABASE_URL
               valueFrom:
@@ -49,7 +49,7 @@ spec:
           args:
             - --https-address=:8443
             - --provider=openshift
-            - --openshift-service-account={{ include "vacation-coverage.fullname" . }}
+            - --openshift-service-account={{ include "quorum.fullname" . }}
             - --upstream=http://localhost:8080
             - --tls-cert=/etc/tls/private/tls.crt
             - --tls-key=/etc/tls/private/tls.key

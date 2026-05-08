@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/alveel/vacation-coverage/internal/locale"
+	"github.com/alveel/quorum/internal/locale"
 )
 
 func TestMain(m *testing.M) {

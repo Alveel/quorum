@@ -9,11 +9,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/alveel/vacation-coverage/internal/auth"
-	"github.com/alveel/vacation-coverage/internal/config"
-	"github.com/alveel/vacation-coverage/internal/locale"
-	"github.com/alveel/vacation-coverage/internal/vacation"
-	"github.com/alveel/vacation-coverage/internal/view"
+	"github.com/alveel/quorum/internal/auth"
+	"github.com/alveel/quorum/internal/config"
+	"github.com/alveel/quorum/internal/locale"
+	"github.com/alveel/quorum/internal/vacation"
+	"github.com/alveel/quorum/internal/view"
 )
 
 type handlers struct {

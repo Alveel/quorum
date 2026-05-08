@@ -2,8 +2,8 @@ package view
 
 import (
 	"fmt"
-	"github.com/alveel/vacation-coverage/internal/locale"
-	"github.com/alveel/vacation-coverage/internal/vacation"
+	"github.com/alveel/quorum/internal/locale"
+	"github.com/alveel/quorum/internal/vacation"
 )
 
 templ VacationForm() {
@@ -102,7 +102,7 @@ templ FormSuccess() {
 }
 
 templ IndexPage(d PageData) {
-	@Layout("Leave Coverage", d.User, d.IsAdmin) {
+	@Layout("Quorum", d.User, d.IsAdmin) {
 		<div class="index-layout">
 			@Heatmap(d.Heatmap)
 			<aside>

@@ -3,7 +3,7 @@ package view
 import (
 	"time"
 
-	"github.com/alveel/vacation-coverage/internal/vacation"
+	"github.com/alveel/quorum/internal/vacation"
 )
 
 type DayCell struct {

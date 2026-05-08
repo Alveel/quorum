@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/alveel/vacation-coverage/internal/auth"
+	"github.com/alveel/quorum/internal/auth"
 )
 
 func upsertUserMiddleware(st Storer) func(http.Handler) http.Handler {

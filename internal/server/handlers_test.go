@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alveel/vacation-coverage/internal/config"
-	"github.com/alveel/vacation-coverage/internal/vacation"
+	"github.com/alveel/quorum/internal/config"
+	"github.com/alveel/quorum/internal/vacation"
 )
 
 // newTestServer wires a chi router with dev auth bypass and the given store fake.

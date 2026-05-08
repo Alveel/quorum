@@ -1,5 +1,5 @@
 apiVersion: v2
-name: vacation-coverage
+name: quorum
 description: Team vacation coverage tool
 type: application
 version: 0.1.0

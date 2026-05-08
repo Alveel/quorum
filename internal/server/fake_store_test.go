@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/alveel/vacation-coverage/internal/vacation"
+	"github.com/alveel/quorum/internal/vacation"
 )
 
 type fakeStore struct {

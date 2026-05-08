@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/alveel/vacation-coverage/internal/vacation"
+	"github.com/alveel/quorum/internal/vacation"
 )
 
 // Storer is the subset of store.Store methods used by HTTP handlers.

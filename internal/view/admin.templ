@@ -2,12 +2,12 @@ package view
 
 import (
 	"fmt"
-	"github.com/alveel/vacation-coverage/internal/locale"
-	"github.com/alveel/vacation-coverage/internal/vacation"
+	"github.com/alveel/quorum/internal/locale"
+	"github.com/alveel/quorum/internal/vacation"
 )
 
 templ AdminPage(d AdminData) {
-	@Layout("Admin — Leave Coverage", d.User, true) {
+	@Layout("Admin — Quorum", d.User, true) {
 		<h2>{ locale.T(ctx, "admin_heading") }</h2>
 
 		<section>

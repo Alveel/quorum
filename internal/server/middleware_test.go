@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/alveel/vacation-coverage/internal/auth"
-	"github.com/alveel/vacation-coverage/internal/config"
+	"github.com/alveel/quorum/internal/auth"
+	"github.com/alveel/quorum/internal/config"
 )
 
 // injectUser wraps a handler with auth.Middleware in dev bypass mode.

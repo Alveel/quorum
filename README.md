@@ -1,4 +1,4 @@
-# Vacation Coverage
+# Quorum
 
 Internal tool for a ~15-person team to register vacations and avoid coverage gaps. Each calendar day is color-coded by how many team members are present. Requesting a vacation that would push any day below the configured minimum is hard-denied; an admin can override.
 

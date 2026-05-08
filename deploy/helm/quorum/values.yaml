@@ -1,23 +1,23 @@
 image:
-  repository: ghcr.io/alveel/vacation-coverage
+  repository: ghcr.io/alveel/quorum
   tag: latest
   pullPolicy: IfNotPresent
 
 # Name of an existing Secret containing the DB connection string.
 # The app reads DATABASE_URL from it.
 database:
-  secretName: vacation-coverage-db
+  secretName: quorum-db
   secretKey: DATABASE_URL
 
 oauthProxy:
   image: registry.redhat.io/openshift4/ose-oauth-proxy:v4.15
   # Existing secret with a 32-byte random cookie secret.
   cookieSecret:
-    secretName: vacation-coverage-cookie
+    secretName: quorum-cookie
     secretKey: cookie-secret
   # Existing secret with TLS cert + key for the proxy's HTTPS port.
   tls:
-    secretName: vacation-coverage-tls
+    secretName: quorum-tls
 
 route:
   host: ""   # e.g. vacation.apps.cluster.example.com

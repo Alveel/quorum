@@ -31,4 +31,4 @@ build:
 	CGO_ENABLED=0 go build -o bin/server ./cmd/server
 
 image:
-	podman build -t vacation-coverage:dev .
+	podman build -t quorum:dev .

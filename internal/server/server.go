@@ -7,9 +7,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/alveel/vacation-coverage/internal/auth"
-	"github.com/alveel/vacation-coverage/internal/config"
-	"github.com/alveel/vacation-coverage/internal/locale"
+	"github.com/alveel/quorum/internal/auth"
+	"github.com/alveel/quorum/internal/config"
+	"github.com/alveel/quorum/internal/locale"
 )
 
 func New(cfg config.Config, st Storer, staticFS fs.FS) http.Handler {

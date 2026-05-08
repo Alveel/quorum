@@ -10,8 +10,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
-	"github.com/alveel/vacation-coverage/internal/locale"
-	"github.com/alveel/vacation-coverage/internal/vacation"
+	"github.com/alveel/quorum/internal/locale"
+	"github.com/alveel/quorum/internal/vacation"
 )
 
 func VacationForm() templ.Component {

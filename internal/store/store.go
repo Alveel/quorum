@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/alveel/vacation-coverage/migrations"
+	"github.com/alveel/quorum/migrations"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/alveel/vacation-coverage/internal/vacation"
+	"github.com/alveel/quorum/internal/vacation"
 )
 
 type Store struct {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/alveel/vacation-coverage/internal/config"
+	"github.com/alveel/quorum/internal/config"
 )
 
 type User struct {

@@ -1,16 +1,16 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: {{ include "vacation-coverage.fullname" . }}
+  name: {{ include "quorum.fullname" . }}
   labels:
-    {{- include "vacation-coverage.labels" . | nindent 4 }}
+    {{- include "quorum.labels" . | nindent 4 }}
 spec:
   {{- if .Values.route.host }}
   host: {{ .Values.route.host }}
   {{- end }}
   to:
     kind: Service
-    name: {{ include "vacation-coverage.fullname" . }}
+    name: {{ include "quorum.fullname" . }}
   port:
     targetPort: https
   tls:

@@ -1,4 +1,4 @@
-module github.com/alveel/vacation-coverage
+module github.com/alveel/quorum
 
 go 1.26.2
 
