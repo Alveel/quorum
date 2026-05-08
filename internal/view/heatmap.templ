@@ -1,6 +1,9 @@
 package view
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/alveel/vacation-coverage/internal/vacation"
+)
 
 templ Heatmap(d HeatmapData) {
 	<section id="heatmap">
@@ -31,6 +34,7 @@ templ heatmapInner(d HeatmapData) {
 		<span class="day-cell orange">&gt;min</span>
 		<span class="day-cell red">≤min ({ fmt.Sprint(d.MinPresent) })</span>
 	</div>
+	<div id="day-detail"></div>
 }
 
 templ MonthBlock(m MonthData) {
@@ -55,8 +59,33 @@ templ DaySquare(c DayCell) {
 			class={ "day-cell", c.Color, templ.KV("override", c.HasOverride), templ.KV("weekend", c.IsWeekend) }
 			title={ fmt.Sprintf("%s — %d present", c.Date.Format("02 Jan 2006"), c.Present) }
 			data-date={ c.Date.Format("2006-01-02") }
+			hx-get={ fmt.Sprintf("/day/%s", c.Date.Format("2006-01-02")) }
+			hx-target="#day-detail"
+			hx-swap="innerHTML"
 		>
 			<span class="day-num">{ fmt.Sprint(c.Date.Day()) }</span>
 		</span>
 	}
+}
+
+templ DayDetail(date string, vacations []vacation.Vacation, present, teamSize int) {
+	<div class="day-detail-panel">
+		<strong>{ date }</strong>
+		<span class="day-detail-count">{ fmt.Sprint(present) } of { fmt.Sprint(teamSize) } present</span>
+		if len(vacations) == 0 {
+			<p class="day-detail-empty">Everyone present.</p>
+		} else {
+			<ul class="day-detail-list">
+				for _, v := range vacations {
+					<li>
+						<span class="day-detail-name">{ v.UserName }</span>
+						<span class="day-detail-period">{ v.StartDate.Format("02 Jan") } – { v.EndDate.Format("02 Jan 2006") }</span>
+						if v.Status == vacation.StatusOverridden {
+							<small class="day-detail-override">(override)</small>
+						}
+					</li>
+				}
+			</ul>
+		}
+	</div>
 }

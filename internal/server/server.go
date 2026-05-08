@@ -33,6 +33,7 @@ func New(cfg config.Config, st *store.Store, staticFS fs.FS) http.Handler {
 		r.Use(upsertUserMiddleware(st))
 
 		r.Get("/", h.index)
+		r.Get("/day/{date}", h.dayDetail)
 		r.Post("/vacations", h.createVacation)
 		r.Delete("/vacations/{id}", h.cancelVacation)
 

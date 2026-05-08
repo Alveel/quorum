@@ -137,6 +137,30 @@ func (h *handlers) cancelVacation(w http.ResponseWriter, r *http.Request) {
 	view.HeatmapOOB(buildHeatmap(now.Year(), perDay, settings)).Render(r.Context(), w)
 }
 
+func (h *handlers) dayDetail(w http.ResponseWriter, r *http.Request) {
+	dateStr := chi.URLParam(r, "date")
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		http.Error(w, "invalid date", http.StatusBadRequest)
+		return
+	}
+
+	settings, err := h.store.GetSettings(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	vacations, err := h.store.VacationsOnDay(r.Context(), date)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	present := settings.TeamSize - len(vacations)
+	view.DayDetail(date.Format("Mon 02 Jan 2006"), vacations, present, settings.TeamSize).Render(r.Context(), w)
+}
+
 func (h *handlers) adminPage(w http.ResponseWriter, r *http.Request) {
 	u := auth.FromContext(r.Context())
 	settings, _ := h.store.GetSettings(r.Context())

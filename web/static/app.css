@@ -104,6 +104,39 @@
   border-radius: 4px;
 }
 
+/* ── Day detail panel ── */
+#day-detail { min-height: 1rem; margin-top: 1rem; }
+
+.day-detail-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+}
+
+.day-detail-count { color: var(--pico-muted-color); font-size: 0.85rem; }
+.day-detail-empty { margin: 0; font-size: 0.85rem; color: var(--pico-muted-color); }
+
+.day-detail-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.5rem;
+}
+
+.day-detail-list li { display: flex; align-items: baseline; gap: 0.4rem; }
+.day-detail-name { font-weight: 500; }
+.day-detail-period { font-size: 0.8rem; color: var(--pico-muted-color); }
+.day-detail-override { color: var(--pico-del-color, #ef4444); }
+
+.day-cell:not(.blank) { cursor: pointer; }
+
 /* ── Theme toggle ── */
 .theme-btn {
   padding: 0.25rem 0.6rem;

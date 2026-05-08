@@ -237,6 +237,23 @@ func (s *Store) ListAllActive(ctx context.Context) ([]vacation.Vacation, error) 
 	return scanVacationsWithName(rows)
 }
 
+// VacationsOnDay returns all active vacations covering a specific date, with user display name.
+func (s *Store) VacationsOnDay(ctx context.Context, date time.Time) ([]vacation.Vacation, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT v.id, v.user_id, u.display_name, v.start_date, v.end_date, v.note, v.status, v.created_at, v.created_by
+		FROM vacations v
+		JOIN users u ON u.id = v.user_id
+		WHERE v.status IN ('approved', 'overridden')
+		  AND $1 BETWEEN v.start_date AND v.end_date
+		ORDER BY v.start_date, v.user_id
+	`, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanVacationsWithName(rows)
+}
+
 // VacationsPerDay returns a map of date → on-vacation count for the given range.
 // Used by both threshold checking and heatmap rendering.
 func (s *Store) VacationsPerDay(ctx context.Context, from, to time.Time) (map[time.Time]int, error) {
