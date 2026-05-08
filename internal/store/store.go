@@ -44,19 +44,19 @@ func RunMigrations(dbURL string) error {
 	if err != nil {
 		return fmt.Errorf("open sql db for migrations: %w", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer db.Close() //nolint:errcheck
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("create migrate driver: %w", err)
 	}
-	defer func() { _ = driver.Close() }()
+	defer driver.Close() //nolint:errcheck
 
 	src, err := iofs.New(migrations.FS, ".")
 	if err != nil {
 		return fmt.Errorf("create migrate source: %w", err)
 	}
-	defer func() { _ = src.Close() }()
+	defer src.Close() //nolint:errcheck
 
 	m, err := migrate.NewWithInstance(
 		"iofs", src,
@@ -131,7 +131,7 @@ func (s *Store) UpdateSetting(ctx context.Context, key string, value any, actorI
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer tx.Rollback(ctx) //nolint:errcheck
 
 	_, err = tx.Exec(ctx, `
 		UPDATE settings SET value = $1, updated_at = now(), updated_by = $2
@@ -166,7 +166,7 @@ func (s *Store) insertAbsence(ctx context.Context, userID, createdBy, note strin
 	if err != nil {
 		return absence.Absence{}, err
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer tx.Rollback(ctx) //nolint:errcheck
 
 	var v absence.Absence
 	err = tx.QueryRow(ctx, `
