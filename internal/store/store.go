@@ -104,13 +104,19 @@ func (s *Store) GetSettings(ctx context.Context) (absence.Settings, error) {
 
 	var s2 absence.Settings
 	if v, ok := m["min_present"]; ok {
-		json.Unmarshal(v, &s2.MinPresent)
+		if err := json.Unmarshal(v, &s2.MinPresent); err != nil {
+			return absence.Settings{}, fmt.Errorf("unmarshal min_present: %w", err)
+		}
 	}
 	if v, ok := m["team_size"]; ok {
-		json.Unmarshal(v, &s2.TeamSize)
+		if err := json.Unmarshal(v, &s2.TeamSize); err != nil {
+			return absence.Settings{}, fmt.Errorf("unmarshal team_size: %w", err)
+		}
 	}
 	if v, ok := m["weekend_counts"]; ok {
-		json.Unmarshal(v, &s2.WeekendCounts)
+		if err := json.Unmarshal(v, &s2.WeekendCounts); err != nil {
+			return absence.Settings{}, fmt.Errorf("unmarshal weekend_counts: %w", err)
+		}
 	}
 	return s2, rows.Err()
 }
@@ -125,7 +131,7 @@ func (s *Store) UpdateSetting(ctx context.Context, key string, value any, actorI
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	_, err = tx.Exec(ctx, `
 		UPDATE settings SET value = $1, updated_at = now(), updated_by = $2
@@ -160,7 +166,7 @@ func (s *Store) insertAbsence(ctx context.Context, userID, createdBy, note strin
 	if err != nil {
 		return absence.Absence{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	var v absence.Absence
 	err = tx.QueryRow(ctx, `
@@ -174,7 +180,7 @@ func (s *Store) insertAbsence(ctx context.Context, userID, createdBy, note strin
 		return absence.Absence{}, err
 	}
 
-	payload, _ := json.Marshal(map[string]string{
+	payload, _ := json.Marshal(map[string]string{ //nolint:errcheck // map[string]string is always JSON-serializable
 		"user_id": userID,
 		"status":  string(status),
 		"reason":  overrideReason,

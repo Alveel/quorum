@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -57,7 +58,9 @@ func (h *handlers) index(w http.ResponseWriter, r *http.Request) {
 		Heatmap:    heatmap,
 		MyAbsences: myAbsence,
 	}
-	view.IndexPage(page).Render(r.Context(), w)
+	if err := view.IndexPage(page).Render(r.Context(), w); err != nil {
+		slog.Debug("render", "err", err)
+	}
 }
 
 func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +68,9 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 	start, end, err := parseDateRange(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		view.FormError(locale.T(r.Context(), err.Error()), nil).Render(r.Context(), w)
+		if err2 := view.FormError(locale.T(r.Context(), err.Error()), nil).Render(r.Context(), w); err2 != nil {
+			slog.Debug("render", "err", err2)
+		}
 		return
 	}
 
@@ -76,7 +81,9 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 	}
 	if overlap {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		view.FormError(locale.T(r.Context(), "err_overlap"), nil).Render(r.Context(), w)
+		if err := view.FormError(locale.T(r.Context(), "err_overlap"), nil).Render(r.Context(), w); err != nil {
+			slog.Debug("render", "err", err)
+		}
 		return
 	}
 
@@ -101,13 +108,15 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 			dates[i] = locale.FormatDate(r.Context(), d)
 		}
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		view.FormError(
+		if err := view.FormError(
 			locale.TP(r.Context(), "err_coverage", len(offending), map[string]any{
 				"Min":   settings.MinPresent,
 				"Count": len(offending),
 			}),
 			dates,
-		).Render(r.Context(), w)
+		).Render(r.Context(), w); err != nil {
+			slog.Debug("render", "err", err)
+		}
 		return
 	}
 
@@ -120,13 +129,25 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 	year := start.Year()
 	yearStart := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	yearEnd := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
-	perDay, _ = h.store.AbsencePerDay(r.Context(), yearStart, yearEnd)
-	myAbsences, _ := h.store.ListMyAbsences(r.Context(), u.ID)
+	perDay, err = h.store.AbsencePerDay(r.Context(), yearStart, yearEnd)
+	if err != nil {
+		slog.Warn("oob refresh: AbsencePerDay", "err", err)
+	}
+	myAbsences, err2 := h.store.ListMyAbsences(r.Context(), u.ID)
+	if err2 != nil {
+		slog.Warn("oob refresh: ListMyAbsences", "err", err2)
+	}
 
 	// OOB elements appended after primary response content.
-	view.FormSuccess().Render(r.Context(), w)
-	view.HeatmapOOB(buildHeatmap(year, perDay, settings)).Render(r.Context(), w)
-	view.MyAbsencesOOB(myAbsences).Render(r.Context(), w)
+	if err := view.FormSuccess().Render(r.Context(), w); err != nil {
+		slog.Debug("render", "err", err)
+	}
+	if err := view.HeatmapOOB(buildHeatmap(year, perDay, settings)).Render(r.Context(), w); err != nil {
+		slog.Debug("render", "err", err)
+	}
+	if err := view.MyAbsencesOOB(myAbsences).Render(r.Context(), w); err != nil {
+		slog.Debug("render", "err", err)
+	}
 }
 
 func (h *handlers) cancelAbsence(w http.ResponseWriter, r *http.Request) {
@@ -144,12 +165,25 @@ func (h *handlers) cancelAbsence(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	yearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
 	yearEnd := time.Date(now.Year(), 12, 31, 0, 0, 0, 0, time.UTC)
-	settings, _ := h.store.GetSettings(r.Context())
-	perDay, _ := h.store.AbsencePerDay(r.Context(), yearStart, yearEnd)
-	myAbsences, _ := h.store.ListMyAbsences(r.Context(), u.ID)
+	settings, err := h.store.GetSettings(r.Context())
+	if err != nil {
+		slog.Warn("oob refresh: GetSettings", "err", err)
+	}
+	perDay, err2 := h.store.AbsencePerDay(r.Context(), yearStart, yearEnd)
+	if err2 != nil {
+		slog.Warn("oob refresh: AbsencePerDay", "err", err2)
+	}
+	myAbsences, err3 := h.store.ListMyAbsences(r.Context(), u.ID)
+	if err3 != nil {
+		slog.Warn("oob refresh: ListMyAbsences", "err", err3)
+	}
 
-	view.MyAbsences(myAbsences).Render(r.Context(), w)
-	view.HeatmapOOB(buildHeatmap(now.Year(), perDay, settings)).Render(r.Context(), w)
+	if err := view.MyAbsences(myAbsences).Render(r.Context(), w); err != nil {
+		slog.Debug("render", "err", err)
+	}
+	if err := view.HeatmapOOB(buildHeatmap(now.Year(), perDay, settings)).Render(r.Context(), w); err != nil {
+		slog.Debug("render", "err", err)
+	}
 }
 
 func (h *handlers) dayDetail(w http.ResponseWriter, r *http.Request) {
@@ -173,18 +207,30 @@ func (h *handlers) dayDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	present := settings.TeamSize - len(absences)
-	view.DayDetail(locale.FormatDate(r.Context(), date), absences, present, settings.TeamSize).Render(r.Context(), w)
+	if err := view.DayDetail(locale.FormatDate(r.Context(), date), absences, present, settings.TeamSize).Render(r.Context(), w); err != nil {
+		slog.Debug("render", "err", err)
+	}
 }
 
 func (h *handlers) adminPage(w http.ResponseWriter, r *http.Request) {
 	u := auth.FromContext(r.Context())
-	settings, _ := h.store.GetSettings(r.Context())
-	absences, _ := h.store.ListAllActive(r.Context())
-	view.AdminPage(view.AdminData{
+	settings, err := h.store.GetSettings(r.Context())
+	if err != nil {
+		http.Error(w, "load settings: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	absences, err := h.store.ListAllActive(r.Context())
+	if err != nil {
+		http.Error(w, "load absences: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := view.AdminPage(view.AdminData{
 		User:     u.ID,
 		Settings: settings,
 		Absences: absences,
-	}).Render(r.Context(), w)
+	}).Render(r.Context(), w); err != nil {
+		slog.Debug("render", "err", err)
+	}
 }
 
 func (h *handlers) adminSettings(w http.ResponseWriter, r *http.Request) {
@@ -194,15 +240,32 @@ func (h *handlers) adminSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if v := r.FormValue("min_present"); v != "" {
-		n, _ := strconv.Atoi(v)
-		h.store.UpdateSetting(r.Context(), "min_present", n, u.ID)
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			http.Error(w, "invalid min_present: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := h.store.UpdateSetting(r.Context(), "min_present", n, u.ID); err != nil {
+			http.Error(w, "update min_present: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	if v := r.FormValue("team_size"); v != "" {
-		n, _ := strconv.Atoi(v)
-		h.store.UpdateSetting(r.Context(), "team_size", n, u.ID)
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			http.Error(w, "invalid team_size: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := h.store.UpdateSetting(r.Context(), "team_size", n, u.ID); err != nil {
+			http.Error(w, "update team_size: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	wc := r.FormValue("weekend_counts") == "true"
-	h.store.UpdateSetting(r.Context(), "weekend_counts", wc, u.ID)
+	if err := h.store.UpdateSetting(r.Context(), "weekend_counts", wc, u.ID); err != nil {
+		http.Error(w, "update weekend_counts: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
 
