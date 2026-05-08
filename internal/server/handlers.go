@@ -67,6 +67,18 @@ func (h *handlers) createVacation(w http.ResponseWriter, r *http.Request) {
 		view.FormError(err.Error(), nil).Render(r.Context(), w)
 		return
 	}
+
+	overlap, err := h.store.HasOverlap(r.Context(), u.ID, start, end)
+	if err != nil {
+		http.Error(w, "check overlap: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if overlap {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		view.FormError("You already have a vacation overlapping this date range", nil).Render(r.Context(), w)
+		return
+	}
+
 	note := r.FormValue("note")
 
 	settings, err := h.store.GetSettings(r.Context())

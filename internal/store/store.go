@@ -282,6 +282,26 @@ func (s *Store) VacationsPerDay(ctx context.Context, from, to time.Time) (map[ti
 	return m, rows.Err()
 }
 
+// HasOverlap checks if a user already has a non-cancelled vacation
+// overlapping the given date range.
+func (s *Store) HasOverlap(ctx context.Context, userID string, start, end time.Time) (bool, error) {
+	var exists bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM vacations
+			WHERE user_id = $1
+		  		AND status != 'cancelled'
+		  		AND end_date >= $2
+				AND start_date <= $3
+		)
+	`, userID, start, end).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
 // --- helpers ---
 
 type rowScanner interface {
@@ -313,4 +333,3 @@ func scanVacationsWithName(rows rowScanner) ([]vacation.Vacation, error) {
 	}
 	return out, rows.Err()
 }
-

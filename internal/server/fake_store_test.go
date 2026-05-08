@@ -29,6 +29,8 @@ type fakeStore struct {
 	upsertCalled  bool
 	upsertID      string
 	upsertEmail   string
+	hasOverlap    bool
+	hasOverlapErr error
 }
 
 func (f *fakeStore) GetSettings(_ context.Context) (vacation.Settings, error) {
@@ -75,4 +77,8 @@ func (f *fakeStore) UpsertUser(_ context.Context, id, email, _ string) error {
 	f.upsertID = id
 	f.upsertEmail = email
 	return f.upsertErr
+}
+
+func (f *fakeStore) HasOverlap(_ context.Context, _ string, _, _ time.Time) (bool, error) {
+	return f.hasOverlap, f.hasOverlapErr
 }

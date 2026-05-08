@@ -22,4 +22,5 @@ type Storer interface {
 	CreateOverride(ctx context.Context, userID, actorID, note string, start, end time.Time, reason string) (vacation.Vacation, error)
 	CancelVacation(ctx context.Context, id uuid.UUID, userID string) error
 	UpsertUser(ctx context.Context, id, email, displayName string) error
+	HasOverlap(ctx context.Context, userID string, start, end time.Time) (bool, error)
 }
