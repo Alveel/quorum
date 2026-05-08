@@ -108,9 +108,8 @@ func (h *handlers) createVacation(w http.ResponseWriter, r *http.Request) {
 	perDay, _ = h.store.VacationsPerDay(r.Context(), yearStart, yearEnd)
 	myVacations, _ := h.store.ListMyVacations(r.Context(), u.ID)
 
+	// OOB elements appended after primary response content.
 	view.FormSuccess().Render(r.Context(), w)
-	// HTMX OOB swaps appended to the response.
-	w.Header().Set("HX-Trigger", "vacationChanged")
 	view.HeatmapOOB(buildHeatmap(year, perDay, settings)).Render(r.Context(), w)
 	view.MyVacationsOOB(myVacations).Render(r.Context(), w)
 }
@@ -126,8 +125,16 @@ func (h *handlers) cancelVacation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	now := time.Now()
+	yearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+	yearEnd := time.Date(now.Year(), 12, 31, 0, 0, 0, 0, time.UTC)
+	settings, _ := h.store.GetSettings(r.Context())
+	perDay, _ := h.store.VacationsPerDay(r.Context(), yearStart, yearEnd)
 	myVacations, _ := h.store.ListMyVacations(r.Context(), u.ID)
+
 	view.MyVacations(myVacations).Render(r.Context(), w)
+	view.HeatmapOOB(buildHeatmap(now.Year(), perDay, settings)).Render(r.Context(), w)
 }
 
 func (h *handlers) adminPage(w http.ResponseWriter, r *http.Request) {

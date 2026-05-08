@@ -39,3 +39,5 @@ bin/
 go.work
 go.work.sum
 .env
+# Added by code-review-graph
+.code-review-graph/
