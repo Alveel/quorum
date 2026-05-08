@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/alveel/vacation-coverage/migrations"
@@ -315,17 +314,3 @@ func scanVacationsWithName(rows rowScanner) ([]vacation.Vacation, error) {
 	return out, rows.Err()
 }
 
-// settingInt parses a jsonb number stored as string.
-func settingInt(raw json.RawMessage, def int) int {
-	var n int
-	if err := json.Unmarshal(raw, &n); err == nil {
-		return n
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err == nil {
-		if n, err := strconv.Atoi(s); err == nil {
-			return n
-		}
-	}
-	return def
-}

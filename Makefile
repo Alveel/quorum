@@ -1,4 +1,4 @@
-.PHONY: dev test lint templ migrate build image
+.PHONY: dev test test-integration lint templ migrate build image
 
 DEV_DB_URL ?= postgresql://vacation:vacation@127.0.0.1:5432/vacation?sslmode=disable
 
@@ -11,6 +11,9 @@ dev:
 
 test:
 	go test ./...
+
+test-integration:
+	TEST_DATABASE_URL=$(DEV_DB_URL) go test -tags=integration ./internal/store/...
 
 lint:
 	golangci-lint run

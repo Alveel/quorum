@@ -9,10 +9,9 @@ import (
 
 	"github.com/alveel/vacation-coverage/internal/auth"
 	"github.com/alveel/vacation-coverage/internal/config"
-	"github.com/alveel/vacation-coverage/internal/store"
 )
 
-func New(cfg config.Config, st *store.Store, staticFS fs.FS) http.Handler {
+func New(cfg config.Config, st Storer, staticFS fs.FS) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)

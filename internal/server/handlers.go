@@ -11,14 +11,13 @@ import (
 
 	"github.com/alveel/vacation-coverage/internal/auth"
 	"github.com/alveel/vacation-coverage/internal/config"
-	"github.com/alveel/vacation-coverage/internal/store"
 	"github.com/alveel/vacation-coverage/internal/vacation"
 	"github.com/alveel/vacation-coverage/internal/view"
 )
 
 type handlers struct {
 	cfg   config.Config
-	store *store.Store
+	store Storer
 }
 
 func (h *handlers) index(w http.ResponseWriter, r *http.Request) {
