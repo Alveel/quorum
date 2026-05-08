@@ -88,16 +88,16 @@ helm template deploy/helm/quorum --values deploy/helm/quorum/values.yaml
 
 ### Environment variables (app container)
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
-| `PORT` | No | `8080` | HTTP listen port |
-| `ADMIN_GROUPS` | No | — | Comma-separated OpenShift group names granted admin |
-| `TEAM_SIZE` | No | `15` | Initial team size (overridden by DB setting once changed) |
-| `MIN_PRESENT_DEFAULT` | No | `8` | Initial minimum present threshold |
-| `DEV_AUTH_BYPASS` | No | `false` | Must be `true` to enable dev bypass; never set in production |
-| `DEV_USER` | No | — | Username to inject in dev mode |
-| `DEV_ADMIN` | No | `false` | Grant admin in dev mode |
+| Variable              | Required | Default | Description                                                  |
+|-----------------------|----------|---------|--------------------------------------------------------------|
+| `DATABASE_URL`        | Yes      | —       | PostgreSQL connection string                                 |
+| `PORT`                | No       | `8080`  | HTTP listen port                                             |
+| `ADMIN_GROUPS`        | No       | —       | Comma-separated OpenShift group names granted admin          |
+| `TEAM_SIZE`           | No       | `15`    | Initial team size (overridden by DB setting once changed)    |
+| `MIN_PRESENT_DEFAULT` | No       | `8`     | Initial minimum present threshold                            |
+| `DEV_AUTH_BYPASS`     | No       | `false` | Must be `true` to enable dev bypass; never set in production |
+| `DEV_USER`            | No       | —       | Username to inject in dev mode                               |
+| `DEV_ADMIN`           | No       | `false` | Grant admin in dev mode                                      |
 
 ### Migrations
 
@@ -144,15 +144,16 @@ The app is available at `http://localhost:8080`.
 
 ### Make targets
 
-| Target | What it does |
-|---|---|
-| `make dev` | Start Postgres + app (hot-reload not included) |
-| `make build` | Compile static binary to `./bin/server` |
-| `make test` | `go test ./...` |
-| `make lint` | `golangci-lint run` |
-| `make templ` | Regenerate Go from `*.templ` files |
-| `make migrate` | Apply pending migrations against `$DATABASE_URL` |
-| `make image` | Build the Docker image |
+| Target                  | What it does                                     |
+|-------------------------|--------------------------------------------------|
+| `make dev`              | Start Postgres + app (hot-reload not included)   |
+| `make build`            | Compile static binary to `./bin/server`          |
+| `make test`             | `go test ./...`                                  |
+| `make test-integration` | `go test -tags=integration ./internal/store/...` | 
+| `make lint`             | `golangci-lint run`                              |
+| `make templ`            | Regenerate Go from `*.templ` files               |
+| `make migrate`          | Apply pending migrations against `$DATABASE_URL` |
+| `make image`            | Build the Docker image                           |
 
 Run a single test:
 
@@ -168,6 +169,7 @@ internal/
   absence/           domain types, present() and threshold logic
   auth/              header parsing, admin check, dev bypass
   config/            env-driven config loading
+  locale/            locale files
   server/            chi router, middleware, HTTP handlers
   store/             PostgreSQL queries
   view/              templ components (heatmap, forms, admin)
