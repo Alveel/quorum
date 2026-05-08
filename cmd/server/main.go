@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/alveel/vacation-coverage/internal/config"
 	"github.com/alveel/vacation-coverage/internal/server"
@@ -23,6 +26,11 @@ func main() {
 	}
 	if cfg.DevAuthBypass && cfg.DevUser == "" {
 		log.Error("DEV_AUTH_BYPASS=true requires DEV_USER to be set")
+		os.Exit(1)
+	}
+
+	if err := waitForDB(cfg.DatabaseURL, 15*time.Second, log); err != nil {
+		log.Error("database not reachable", "err", err)
 		os.Exit(1)
 	}
 
@@ -53,5 +61,26 @@ func main() {
 	if err := http.ListenAndServe(addr, h); err != nil {
 		log.Error("server error", "err", err)
 		os.Exit(1)
+	}
+}
+
+func waitForDB(url string, timeout time.Duration, log *slog.Logger) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		pool, err := pgxpool.New(ctx, url)
+		if err == nil {
+			err = pool.Ping(ctx)
+			pool.Close()
+		}
+		cancel()
+		if err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return err
+		}
+		log.Info("waiting for database", "err", err)
+		time.Sleep(time.Second)
 	}
 }
