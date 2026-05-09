@@ -59,7 +59,7 @@ func (h *handlers) index(w http.ResponseWriter, r *http.Request) {
 		MyAbsences: myAbsence,
 	}
 	if err := view.IndexPage(page).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "err", err)
+		slog.Debug("render", "handler", "index", "err", err)
 	}
 }
 
@@ -69,7 +69,7 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if err2 := view.FormError(locale.T(r.Context(), err.Error()), nil).Render(r.Context(), w); err2 != nil {
-			slog.Debug("render", "err", err2)
+			slog.Debug("render", "handler", "createAbsence", "err", err2)
 		}
 		return
 	}
@@ -82,7 +82,7 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 	if overlap {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if err := view.FormError(locale.T(r.Context(), "err_overlap"), nil).Render(r.Context(), w); err != nil {
-			slog.Debug("render", "err", err)
+			slog.Debug("render", "handler", "createAbsence", "err", err)
 		}
 		return
 	}
@@ -115,7 +115,7 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 			}),
 			dates,
 		).Render(r.Context(), w); err != nil {
-			slog.Debug("render", "err", err)
+			slog.Debug("render", "handler", "createAbsence", "err", err)
 		}
 		return
 	}
@@ -140,13 +140,13 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 
 	// OOB elements appended after primary response content.
 	if err := view.FormSuccess().Render(r.Context(), w); err != nil {
-		slog.Debug("render", "err", err)
+		slog.Debug("render", "handler", "createAbsence", "err", err)
 	}
 	if err := view.HeatmapOOB(buildHeatmap(year, perDay, settings)).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "err", err)
+		slog.Debug("render", "handler", "createAbsence", "err", err)
 	}
 	if err := view.MyAbsencesOOB(myAbsences).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "err", err)
+		slog.Debug("render", "handler", "createAbsence", "err", err)
 	}
 }
 
@@ -179,10 +179,10 @@ func (h *handlers) cancelAbsence(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := view.MyAbsences(myAbsences).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "err", err)
+		slog.Debug("render", "handler", "cancelAbsence", "err", err)
 	}
 	if err := view.HeatmapOOB(buildHeatmap(now.Year(), perDay, settings)).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "err", err)
+		slog.Debug("render", "handler", "cancelAbsence", "err", err)
 	}
 }
 
@@ -208,7 +208,7 @@ func (h *handlers) dayDetail(w http.ResponseWriter, r *http.Request) {
 
 	present := settings.TeamSize - len(absences)
 	if err := view.DayDetail(locale.FormatDate(r.Context(), date), absences, present, settings.TeamSize).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "err", err)
+		slog.Debug("render", "handler", "dayDetail", "err", err)
 	}
 }
 
@@ -229,7 +229,7 @@ func (h *handlers) adminPage(w http.ResponseWriter, r *http.Request) {
 		Settings: settings,
 		Absences: absences,
 	}).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "err", err)
+		slog.Debug("render", "handler", "adminPage", "err", err)
 	}
 }
 
