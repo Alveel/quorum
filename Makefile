@@ -1,4 +1,4 @@
-.PHONY: dev test test-integration lint templ migrate build image
+.PHONY: dev test test-integration lint templ migrate build image helm-lint
 
 DEV_DB_URL ?= postgresql://quorum:quorum@127.0.0.1:5432/quorum?sslmode=disable
 
@@ -32,3 +32,7 @@ build:
 
 image:
 	podman build -t quorum:dev .
+
+helm-lint:
+	helm lint deploy/helm/quorum -f deploy/helm/quorum/values.lint.yaml
+	helm lint deploy/helm/quorum -f deploy/helm/quorum/values.lint.httproute-oidc.yaml

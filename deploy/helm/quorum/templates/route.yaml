@@ -1,3 +1,4 @@
+{{- if eq .Values.ingress.type "route" }}
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
@@ -5,14 +6,15 @@ metadata:
   labels:
     {{- include "quorum.labels" . | nindent 4 }}
 spec:
-  {{- if .Values.route.host }}
-  host: {{ .Values.route.host }}
+  {{- if .Values.ingress.host }}
+  host: {{ .Values.ingress.host }}
   {{- end }}
   to:
     kind: Service
     name: {{ include "quorum.fullname" . }}
   port:
-    targetPort: https
+    targetPort: http
   tls:
-    termination: {{ .Values.route.tls.termination }}
-    insecureEdgeTerminationPolicy: {{ .Values.route.tls.insecureEdgeTerminationPolicy }}
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end }}

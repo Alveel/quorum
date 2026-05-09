@@ -1,0 +1,20 @@
+# Stub values for helm lint: OpenShift Route + openshift-oauth-proxy (default scenario)
+ingress:
+  type: route
+  host: quorum.apps.cluster.example.com
+
+proxy:
+  provider: openshift
+  cookieSecret:
+    secretName: quorum-cookie
+    secretKey: cookie-secret
+
+admin:
+  groups: [quorum-admins]
+
+database:
+  secretName: quorum-db
+  secretKey: DATABASE_URL
+  tlsCA:
+    enabled: false
+    secretName: ""

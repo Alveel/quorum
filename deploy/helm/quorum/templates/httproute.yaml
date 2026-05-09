@@ -1,0 +1,25 @@
+{{- if eq .Values.ingress.type "httproute" }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "quorum.fullname" . }}
+  labels:
+    {{- include "quorum.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ required ".Values.ingress.gatewayRef.name required when ingress.type=httproute" .Values.ingress.gatewayRef.name }}
+      namespace: {{ required ".Values.ingress.gatewayRef.namespace required when ingress.type=httproute" .Values.ingress.gatewayRef.namespace }}
+      {{- if .Values.ingress.gatewayRef.sectionName }}
+      sectionName: {{ .Values.ingress.gatewayRef.sectionName }}
+      {{- end }}
+  hostnames:
+    - {{ required ".Values.ingress.host required when ingress.type=httproute" .Values.ingress.host }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ include "quorum.fullname" . }}
+          port: 80
+{{- end }}

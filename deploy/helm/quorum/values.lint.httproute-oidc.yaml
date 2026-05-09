@@ -1,0 +1,31 @@
+# Stub values for helm lint: GatewayAPI HTTPRoute + oauth2-proxy OIDC + database TLS (k8s scenario)
+ingress:
+  type: httproute
+  host: quorum.example.com
+  gatewayRef:
+    name: default
+    namespace: gateway-system
+
+proxy:
+  provider: oidc
+  cookieSecret:
+    secretName: quorum-cookie
+    secretKey: cookie-secret
+  oidc:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.9.0
+    issuerURL: https://keycloak.example.com/realms/main
+    clientID: quorum
+    clientSecret:
+      secretName: quorum-oidc
+      secretKey: client-secret
+    emailDomain: "*"
+
+admin:
+  groups: [quorum-admins]
+
+database:
+  secretName: quorum-db
+  secretKey: DATABASE_URL
+  tlsCA:
+    enabled: true
+    secretName: quorum-db-ca

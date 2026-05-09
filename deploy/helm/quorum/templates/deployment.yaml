@@ -17,7 +17,7 @@ spec:
       serviceAccountName: {{ include "quorum.fullname" . }}
       containers:
         - name: app
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -31,6 +31,16 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.database.secretName }}
                   key: {{ .Values.database.secretKey }}
+            {{- if .Values.database.tlsCA.enabled }}
+            - name: PGSSLROOTCERT
+              value: /etc/db-tls/ca.crt
+            {{- end }}
+          {{- if .Values.database.tlsCA.enabled }}
+          volumeMounts:
+            - name: db-tls-ca
+              mountPath: /etc/db-tls
+              readOnly: true
+          {{- end }}
           livenessProbe:
             httpGet: { path: /healthz, port: http }
             initialDelaySeconds: 5
@@ -41,45 +51,79 @@ spec:
             {{- toYaml .Values.resources.app | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             runAsNonRoot: true
             capabilities: { drop: [ALL] }
 
-        - name: oauth-proxy
-          image: {{ .Values.oauthProxy.image }}
+        - name: proxy
+          {{- if eq .Values.proxy.provider "openshift" }}
+          image: {{ .Values.proxy.openshift.image }}
           args:
-            - --https-address=:8443
+            - --http-address=:4180
             - --provider=openshift
             - --openshift-service-account={{ include "quorum.fullname" . }}
             - --upstream=http://localhost:8080
-            - --tls-cert=/etc/tls/private/tls.crt
-            - --tls-key=/etc/tls/private/tls.key
             - --cookie-secret-file=/etc/proxy/secrets/cookie-secret
             - --pass-user-headers=true
             - --pass-access-token=false
+            {{- if eq .Values.ingress.type "httproute" }}
+            - --redirect-url=https://{{ required ".Values.ingress.host required when ingress.type=httproute" .Values.ingress.host }}/oauth/callback
+            {{- end }}
+          {{- else }}
+          image: {{ .Values.proxy.oidc.image }}
+          args:
+            - --http-address=:4180
+            - --provider=oidc
+            - --oidc-issuer-url={{ .Values.proxy.oidc.issuerURL }}
+            - --client-id={{ .Values.proxy.oidc.clientID }}
+            - --client-secret-file=/etc/proxy/oidc/client-secret
+            - --upstream=http://localhost:8080
+            - --redirect-url=https://{{ required ".Values.ingress.host required when proxy.provider=oidc" .Values.ingress.host }}/oauth2/callback
+            - --email-domain={{ .Values.proxy.oidc.emailDomain }}
+            - --set-xauthrequest=true
+            - --pass-user-headers=true
+            - --cookie-secret-file=/etc/proxy/secrets/cookie-secret
+          {{- end }}
           ports:
-            - name: https
-              containerPort: 8443
+            - name: proxy
+              containerPort: 4180
           volumeMounts:
-            - name: tls
-              mountPath: /etc/tls/private
-              readOnly: true
             - name: cookie-secret
               mountPath: /etc/proxy/secrets
               readOnly: true
+            {{- if eq .Values.proxy.provider "oidc" }}
+            - name: client-secret
+              mountPath: /etc/proxy/oidc
+              readOnly: true
+            {{- end }}
           resources:
-            {{- toYaml .Values.resources.oauthProxy | nindent 12 }}
+            {{- toYaml .Values.resources.proxy | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             runAsNonRoot: true
             capabilities: { drop: [ALL] }
 
       volumes:
-        - name: tls
-          secret:
-            secretName: {{ .Values.oauthProxy.tls.secretName }}
         - name: cookie-secret
           secret:
-            secretName: {{ .Values.oauthProxy.cookieSecret.secretName }}
+            secretName: {{ .Values.proxy.cookieSecret.secretName }}
             items:
-              - key: {{ .Values.oauthProxy.cookieSecret.secretKey }}
+              - key: {{ .Values.proxy.cookieSecret.secretKey }}
                 path: cookie-secret
+        {{- if eq .Values.proxy.provider "oidc" }}
+        - name: client-secret
+          secret:
+            secretName: {{ .Values.proxy.oidc.clientSecret.secretName }}
+            items:
+              - key: {{ .Values.proxy.oidc.clientSecret.secretKey }}
+                path: client-secret
+        {{- end }}
+        {{- if .Values.database.tlsCA.enabled }}
+        - name: db-tls-ca
+          secret:
+            secretName: {{ .Values.database.tlsCA.secretName }}
+            items:
+              - key: ca.crt
+                path: ca.crt
+        {{- end }}

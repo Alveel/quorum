@@ -1,29 +1,44 @@
 image:
   repository: ghcr.io/alveel/quorum
-  tag: latest
+  tag: ""  # defaults to .Chart.AppVersion
   pullPolicy: IfNotPresent
 
 # Name of an existing Secret containing the DB connection string.
-# The app reads DATABASE_URL from it.
+# The app reads DATABASE_URL from it. When database.tlsCA.enabled=true,
+# set sslmode=verify-full in DATABASE_URL. Do not include sslrootcert=
+# in the URL — PGSSLROOTCERT is injected automatically from the mounted cert.
 database:
   secretName: quorum-db
   secretKey: DATABASE_URL
+  tlsCA:
+    enabled: false
+    secretName: ""  # Secret with key: ca.crt
 
-oauthProxy:
-  image: registry.access.redhat.com/openshift4/ose-oauth-proxy:v4.12
-  # Existing secret with a 32-byte random cookie secret.
+ingress:
+  type: route          # route | httproute
+  host: ""             # required for httproute; optional for route (OpenShift assigns one)
+  # httproute only: reference to an existing Gateway
+  gatewayRef:
+    name: ""
+    namespace: ""
+    sectionName: ""    # optional
+
+proxy:
+  provider: openshift  # openshift | oidc
+  # Shared cookie secret (both providers).
   cookieSecret:
     secretName: quorum-cookie
     secretKey: cookie-secret
-  # Existing secret with TLS cert + key for the proxy's HTTPS port.
-  tls:
-    secretName: quorum-tls
-
-route:
-  host: ""   # e.g. quorum.apps.cluster.example.com
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
+  openshift:
+    image: registry.access.redhat.com/openshift4/ose-oauth-proxy:v4.18
+  oidc:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.9.0
+    issuerURL: ""
+    clientID: ""
+    clientSecret:
+      secretName: ""
+      secretKey: client-secret
+    emailDomain: "*"
 
 # OpenShift groups whose members are granted admin in the app.
 admin:
@@ -42,7 +57,7 @@ resources:
       memory: 64Mi
     limits:
       memory: 128Mi
-  oauthProxy:
+  proxy:
     requests:
       cpu: 10m
       memory: 32Mi

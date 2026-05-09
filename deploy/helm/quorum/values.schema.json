@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["image", "database", "ingress", "proxy", "admin", "team", "threshold", "resources"],
+  "properties": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "pullPolicy"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag":        { "type": "string" },
+        "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secretName", "secretKey", "tlsCA"],
+      "properties": {
+        "secretName": { "type": "string", "minLength": 1 },
+        "secretKey":  { "type": "string", "minLength": 1 },
+        "tlsCA": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "secretName"],
+          "properties": {
+            "enabled":    { "type": "boolean" },
+            "secretName": { "type": "string" }
+          },
+          "if":   { "properties": { "enabled": { "const": true } } },
+          "then": { "properties": { "secretName": { "minLength": 1 } } }
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "host", "gatewayRef"],
+      "properties": {
+        "type": { "type": "string", "enum": ["route", "httproute"] },
+        "host": { "type": "string" },
+        "gatewayRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "namespace"],
+          "properties": {
+            "name":        { "type": "string" },
+            "namespace":   { "type": "string" },
+            "sectionName": { "type": "string" }
+          }
+        }
+      },
+      "if":   { "properties": { "type": { "const": "httproute" } } },
+      "then": {
+        "required": ["host"],
+        "properties": {
+          "host": { "minLength": 1 },
+          "gatewayRef": {
+            "properties": {
+              "name":      { "minLength": 1 },
+              "namespace": { "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "proxy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "cookieSecret", "openshift", "oidc"],
+      "properties": {
+        "provider": { "type": "string", "enum": ["openshift", "oidc"] },
+        "cookieSecret": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["secretName", "secretKey"],
+          "properties": {
+            "secretName": { "type": "string", "minLength": 1 },
+            "secretKey":  { "type": "string", "minLength": 1 }
+          }
+        },
+        "openshift": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["image"],
+          "properties": {
+            "image": { "type": "string", "minLength": 1 }
+          }
+        },
+        "oidc": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["image", "issuerURL", "clientID", "clientSecret", "emailDomain"],
+          "properties": {
+            "image":       { "type": "string", "minLength": 1 },
+            "issuerURL":   { "type": "string" },
+            "clientID":    { "type": "string" },
+            "emailDomain": { "type": "string", "minLength": 1 },
+            "clientSecret": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["secretName", "secretKey"],
+              "properties": {
+                "secretName": { "type": "string" },
+                "secretKey":  { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      },
+      "if":   { "properties": { "provider": { "const": "oidc" } } },
+      "then": {
+        "properties": {
+          "oidc": {
+            "properties": {
+              "issuerURL":  { "minLength": 1 },
+              "clientID":   { "minLength": 1 },
+              "clientSecret": {
+                "properties": { "secretName": { "minLength": 1 } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "admin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groups"],
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "team": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["size"],
+      "properties": {
+        "size": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "threshold": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minPresentDefault"],
+      "properties": {
+        "minPresentDefault": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["app", "proxy"],
+      "properties": {
+        "app":   { "$ref": "#/$defs/resourceRequirements" },
+        "proxy": { "$ref": "#/$defs/resourceRequirements" }
+      }
+    }
+  },
+  "$defs": {
+    "resourceRequirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cpu":    { "type": "string" },
+            "memory": { "type": "string" }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cpu":    { "type": "string" },
+            "memory": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

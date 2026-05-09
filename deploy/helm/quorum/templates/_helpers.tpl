@@ -5,6 +5,7 @@
 {{- define "quorum.labels" -}}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{ include "quorum.selectorLabels" . }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 

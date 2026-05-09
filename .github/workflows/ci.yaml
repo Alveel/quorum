@@ -41,8 +41,19 @@ jobs:
         with:
           version: v2.12.2
 
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint Helm chart
+        run: make helm-lint
+
   build-image:
-    needs: [test, lint]
+    needs: [test, lint, helm-lint]
     runs-on: ubuntu-latest
     permissions:
       contents: read
