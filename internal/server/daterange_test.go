@@ -1,19 +1,10 @@
 package server
 
 import (
-	"net/http/httptest"
 	"strings"
 	"testing"
+	"net/http/httptest"
 )
-
-func postForm(body string) *httptest.ResponseRecorder {
-	_ = body
-	return httptest.NewRecorder()
-}
-
-func makeFormRequest(body string) *httptest.ResponseRecorder {
-	return httptest.NewRecorder()
-}
 
 func TestParseDateRange_Valid(t *testing.T) {
 	req := httptest.NewRequest("POST", "/", strings.NewReader("start_date=2026-07-01&end_date=2026-07-14"))

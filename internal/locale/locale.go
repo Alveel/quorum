@@ -24,8 +24,12 @@ var bundle *i18n.Bundle
 func Init() {
 	bundle = i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
-	bundle.LoadMessageFileFS(localeFS, "locales/en.json")
-	bundle.LoadMessageFileFS(localeFS, "locales/nl.json")
+	if _, err := bundle.LoadMessageFileFS(localeFS, "locales/en.json"); err != nil {
+		panic("locale: load en.json: " + err.Error())
+	}
+	if _, err := bundle.LoadMessageFileFS(localeFS, "locales/nl.json"); err != nil {
+		panic("locale: load nl.json: " + err.Error())
+	}
 }
 
 func Middleware(next http.Handler) http.Handler {

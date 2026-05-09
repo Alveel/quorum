@@ -24,8 +24,9 @@ type fakeStore struct {
 	createVacErr  error
 	createOvr     absence.Absence
 	createOvrErr  error
-	cancelErr     error
-	upsertErr     error
+	cancelErr        error
+	updateSettingErr error
+	upsertErr        error
 	upsertCalled  bool
 	upsertID      string
 	upsertEmail   string
@@ -38,7 +39,7 @@ func (f *fakeStore) GetSettings(_ context.Context) (absence.Settings, error) {
 }
 
 func (f *fakeStore) UpdateSetting(_ context.Context, _ string, _ any, _ string) error {
-	return nil
+	return f.updateSettingErr
 }
 
 func (f *fakeStore) AbsencePerDay(_ context.Context, _, _ time.Time) (map[time.Time]int, error) {
