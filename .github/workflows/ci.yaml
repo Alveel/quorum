@@ -50,15 +50,30 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: docker/login-action@v4
+      - name: Login to GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: redhat-actions/podman-login@v1
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v7
+      - name: Build image
+        id: build
+        uses: redhat-actions/buildah-build@v2
         with:
-          context: .
-          file: Containerfile
-          push: true
-          tags: ghcr.io/${{ github.repository }}:latest,ghcr.io/${{ github.repository }}:${{ github.sha }}
+          image: ghcr.io/${{ github.repository }}
+          tags: latest ${{ github.sha }}
+          containerfiles: |
+            ./Containerfile
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Push image
+        if: github.ref == 'refs/heads/main'
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build.outputs.image }}
+          tags: ${{ steps.build.outputs.tags }}
+          registry: ghcr.io
