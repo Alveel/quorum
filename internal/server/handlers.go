@@ -169,13 +169,13 @@ func (h *handlers) cancelAbsence(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Warn("oob refresh: GetSettings", "err", err)
 	}
-	perDay, err2 := h.store.AbsencePerDay(r.Context(), yearStart, yearEnd)
-	if err2 != nil {
-		slog.Warn("oob refresh: AbsencePerDay", "err", err2)
+	perDay, err := h.store.AbsencePerDay(r.Context(), yearStart, yearEnd)
+	if err != nil {
+		slog.Warn("oob refresh: AbsencePerDay", "err", err)
 	}
-	myAbsences, err3 := h.store.ListMyAbsences(r.Context(), u.ID)
-	if err3 != nil {
-		slog.Warn("oob refresh: ListMyAbsences", "err", err3)
+	myAbsences, err := h.store.ListMyAbsences(r.Context(), u.ID)
+	if err != nil {
+		slog.Warn("oob refresh: ListMyAbsences", "err", err)
 	}
 
 	if err := view.MyAbsences(myAbsences).Render(r.Context(), w); err != nil {
