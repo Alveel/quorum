@@ -10,7 +10,7 @@ database:
   secretKey: DATABASE_URL
 
 oauthProxy:
-  image: registry.redhat.io/openshift4/ose-oauth-proxy:v4.15
+  image: registry.access.redhat.com/openshift4/ose-oauth-proxy:v4.12
   # Existing secret with a 32-byte random cookie secret.
   cookieSecret:
     secretName: quorum-cookie
