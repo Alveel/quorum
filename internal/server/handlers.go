@@ -239,29 +239,40 @@ func (h *handlers) adminSettings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	// Parse all values before writing any to avoid partial updates on validation failure.
+	var minPresent *int
 	if v := r.FormValue("min_present"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
 			http.Error(w, "invalid min_present: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := h.store.UpdateSetting(r.Context(), "min_present", n, u.ID); err != nil {
-			http.Error(w, "update min_present: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
+		minPresent = &n
 	}
+	var teamSize *int
 	if v := r.FormValue("team_size"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
 			http.Error(w, "invalid team_size: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := h.store.UpdateSetting(r.Context(), "team_size", n, u.ID); err != nil {
+		teamSize = &n
+	}
+	wc := r.FormValue("weekend_counts") == "true"
+
+	if minPresent != nil {
+		if err := h.store.UpdateSetting(r.Context(), "min_present", *minPresent, u.ID); err != nil {
+			http.Error(w, "update min_present: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	if teamSize != nil {
+		if err := h.store.UpdateSetting(r.Context(), "team_size", *teamSize, u.ID); err != nil {
 			http.Error(w, "update team_size: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
-	wc := r.FormValue("weekend_counts") == "true"
 	if err := h.store.UpdateSetting(r.Context(), "weekend_counts", wc, u.ID); err != nil {
 		http.Error(w, "update weekend_counts: "+err.Error(), http.StatusInternalServerError)
 		return
