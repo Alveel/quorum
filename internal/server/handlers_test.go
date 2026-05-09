@@ -252,3 +252,92 @@ func TestDayDetail_StoreError_Returns500(t *testing.T) {
 		t.Errorf("want 500, got %d", resp.StatusCode)
 	}
 }
+
+// --- adminPage ---
+
+func TestAdminPage_GetSettingsError_Returns500(t *testing.T) {
+	st := &fakeStore{settingsErr: errors.New("db error")}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Errorf("want 500, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminPage_ListAllActiveError_Returns500(t *testing.T) {
+	st := &fakeStore{
+		settings:     absence.Settings{TeamSize: 15, MinPresent: 8},
+		allActiveErr: errors.New("db error"),
+	}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Errorf("want 500, got %d", resp.StatusCode)
+	}
+}
+
+// --- adminSettings ---
+
+func TestAdminSettings_InvalidMinPresent_Returns400(t *testing.T) {
+	ts := newTestServer(&fakeStore{settings: absence.Settings{TeamSize: 15, MinPresent: 8}})
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/admin/settings",
+		"application/x-www-form-urlencoded",
+		strings.NewReader("min_present=notanumber&team_size=15&weekend_counts=false"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("want 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminSettings_InvalidTeamSize_Returns400(t *testing.T) {
+	ts := newTestServer(&fakeStore{settings: absence.Settings{TeamSize: 15, MinPresent: 8}})
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/admin/settings",
+		"application/x-www-form-urlencoded",
+		strings.NewReader("min_present=8&team_size=notanumber&weekend_counts=false"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("want 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminSettings_UpdateError_Returns500(t *testing.T) {
+	st := &fakeStore{
+		settings:         absence.Settings{TeamSize: 15, MinPresent: 8},
+		updateSettingErr: errors.New("db error"),
+	}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/admin/settings",
+		"application/x-www-form-urlencoded",
+		strings.NewReader("min_present=8&team_size=15&weekend_counts=false"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Errorf("want 500, got %d", resp.StatusCode)
+	}
+}
