@@ -19,8 +19,8 @@ jobs:
       - name: Install templ
         run: go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
-      - name: Generate templ
-        run: make templ
+      - name: Check templ is up to date
+        run: make templ && git diff --exit-code
 
       - name: Test
         run: make test
@@ -37,20 +37,13 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install templ
-        run: go install github.com/a-h/templ/cmd/templ@v0.3.1001
-
-      - name: Generate templ
-        run: make templ
-
-      - uses: golangci/golangci-lint-action@v9.2.0
+      - uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.12.2
 
   build-image:
     needs: [test, lint]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
