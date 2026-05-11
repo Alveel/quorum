@@ -7,6 +7,26 @@ on:
     branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            app:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - '**/*.templ'
+              - 'Containerfile'
+              - 'Makefile'
+              - 'migrations/**'
+              - 'web/**'
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -67,7 +87,8 @@ jobs:
         run: make helm-lint
 
   build-image:
-    needs: [test, lint, helm-lint]
+    needs: [changes, test, lint, helm-lint]
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
