@@ -106,8 +106,9 @@ jobs:
         run: |
           CHART_VERSION=$(grep '^version:' deploy/helm/quorum/Chart.yaml | awk '{print $2}')
           SHORT_SHA=${GITHUB_SHA::7}
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           helm package deploy/helm/quorum --version "${CHART_VERSION}-${SHORT_SHA}"
-          helm push quorum-${CHART_VERSION}-${SHORT_SHA}.tgz oci://ghcr.io/${{ github.repository_owner }}
+          helm push quorum-${CHART_VERSION}-${SHORT_SHA}.tgz oci://ghcr.io/${OWNER}
 
   build-image:
     needs: [changes, test, lint, helm-lint]
