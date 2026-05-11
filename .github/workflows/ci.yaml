@@ -86,6 +86,29 @@ jobs:
       - name: Lint Helm chart
         run: make helm-lint
 
+  publish-chart:
+    needs: [helm-lint]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+
+      - name: Login to GHCR
+        run: helm registry login ghcr.io -u ${{ github.actor }} --password-stdin <<< "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Package and push chart
+        run: |
+          CHART_VERSION=$(grep '^version:' deploy/helm/quorum/Chart.yaml | awk '{print $2}')
+          SHORT_SHA=${GITHUB_SHA::7}
+          helm package deploy/helm/quorum --version "${CHART_VERSION}-${SHORT_SHA}"
+          helm push quorum-${CHART_VERSION}-${SHORT_SHA}.tgz oci://ghcr.io/${{ github.repository_owner }}
+
   build-image:
     needs: [changes, test, lint, helm-lint]
     if: needs.changes.outputs.app == 'true'
