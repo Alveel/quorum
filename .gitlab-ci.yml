@@ -1,0 +1,157 @@
+stages:
+  - verify
+  - release
+
+variables:
+  # -- image tags --
+  # renovate: datasource=docker depName=registry.access.redhat.com/hi/go
+  GO_BUILDER_TAG: "1.26-builder"
+  # renovate: datasource=docker depName=registry.access.redhat.com/ubi10/ubi-micro
+  UBI_TAG: "10.1-1777857595"
+  # renovate: datasource=docker depName=golangci/golangci-lint
+  GOLANGCI_TAG: "v2.12.2"
+  # renovate: datasource=docker depName=alpine/helm
+  HELM_TAG: "3.20.2"
+  # renovate: datasource=docker depName=quay.io/containers/buildah
+  BUILDAH_TAG: "v1.43.1"
+  # renovate: datasource=docker depName=renovate/renovate
+  RENOVATE_TAG: "43.173-full"
+  # -- images (all pulled from Nexus) --
+  GO_IMAGE: "${NEXUS_REGISTRY}/hi/go:${GO_BUILDER_TAG}"
+  UBI_IMAGE: "${NEXUS_REGISTRY}/ubi10/ubi-micro:${UBI_TAG}"
+  GOLANGCI_IMAGE: "${NEXUS_REGISTRY}/golangci/golangci-lint:${GOLANGCI_TAG}"
+  HELM_IMAGE: "${NEXUS_REGISTRY}/alpine/helm:${HELM_TAG}"
+  BUILDAH_IMAGE: "${NEXUS_REGISTRY}/buildah/stable:${BUILDAH_TAG}"
+  RENOVATE_IMAGE: "${NEXUS_REGISTRY}/renovate/renovate:${RENOVATE_TAG}"
+  # -- app image --
+  APP_IMAGE: "${NEXUS_REGISTRY}/quorum"
+  # -- Go --
+  GOPATH: "$CI_PROJECT_DIR/.cache/go"
+  GOPROXY: "https://${NEXUS_REGISTRY}/repository/go-proxy,direct"
+  GONOSUMDB: "*"
+  # -- npm --
+  NPM_REPOSITORY: "npm-proxy"
+  # -- buildah --
+  STORAGE_DRIVER: vfs
+  BUILDAH_FORMAT: docker
+
+# ── verify ──────────────────────────────────────────────────────────────────
+
+test:
+  stage: verify
+  image: "$GO_IMAGE"
+  cache:
+    key:
+      files: [go.sum]
+    paths: [.cache/go/pkg/mod]
+  rules:
+    - changes:
+        - "**/*.go"
+        - go.mod
+        - go.sum
+        - "**/*.templ"
+        - Containerfile
+        - Makefile
+        - "migrations/**"
+        - "web/**"
+      when: always
+    - when: never
+  script:
+    - TEMPL_VERSION=$(grep 'github.com/a-h/templ' go.mod | awk '{print $2}')
+    - go install github.com/a-h/templ/cmd/templ@${TEMPL_VERSION}
+    - make templ && git diff --exit-code
+    - make test
+    - make build
+
+lint:
+  stage: verify
+  image: "$GOLANGCI_IMAGE"
+  cache:
+    key:
+      files: [go.sum]
+    paths: [.cache/go/pkg/mod]
+  rules:
+    - changes:
+        - "**/*.go"
+        - go.mod
+        - go.sum
+      when: always
+    - when: never
+  script:
+    - make lint
+
+helm-lint:
+  stage: verify
+  image: "$HELM_IMAGE"
+  rules:
+    - when: always
+  script:
+    - make helm-lint
+
+# ── release ─────────────────────────────────────────────────────────────────
+
+build-image:
+  stage: release
+  image: "$BUILDAH_IMAGE"
+  needs: [test, lint, helm-lint]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - "**/*.go"
+        - go.mod
+        - go.sum
+        - "**/*.templ"
+        - Containerfile
+        - Makefile
+        - "migrations/**"
+        - "web/**"
+      when: always
+    - when: never
+  before_script:
+    - buildah login --username "$NEXUS_USER" --password "$NEXUS_PASSWORD" "$NEXUS_REGISTRY"
+  script:
+    - |
+      buildah build \
+        --storage-driver=$STORAGE_DRIVER \
+        --layers \
+        --build-arg GO_IMAGE=${GO_IMAGE} \
+        --build-arg UBI_IMAGE=${UBI_IMAGE} \
+        --tag ${APP_IMAGE}:${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA} \
+        --tag ${APP_IMAGE}:${CI_COMMIT_SHORT_SHA} \
+        -f Containerfile .
+    - buildah push --storage-driver=$STORAGE_DRIVER ${APP_IMAGE}:${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+    - buildah push --storage-driver=$STORAGE_DRIVER ${APP_IMAGE}:${CI_COMMIT_SHORT_SHA}
+
+publish-chart:
+  stage: release
+  image: "$HELM_IMAGE"
+  needs: [helm-lint]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: always
+    - when: never
+  script:
+    - |
+      CHART_VERSION=$(grep '^version:' deploy/helm/quorum/Chart.yaml | awk '{print $2}')
+      helm package deploy/helm/quorum --version "${CHART_VERSION}-${CI_COMMIT_SHORT_SHA}"
+      curl -u "${NEXUS_USER}:${NEXUS_PASSWORD}" \
+        --upload-file quorum-${CHART_VERSION}-${CI_COMMIT_SHORT_SHA}.tgz \
+        "${NEXUS_HELM_URL}/quorum-${CHART_VERSION}-${CI_COMMIT_SHORT_SHA}.tgz"
+
+# ── renovate (scheduled only) ────────────────────────────────────────────────
+
+renovate:
+  stage: verify
+  image: "$RENOVATE_IMAGE"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  variables:
+    RENOVATE_HOST_RULES: >-
+      [{"matchHost":"${NEXUS_REGISTRY}","username":"${NEXUS_USER}","password":"${NEXUS_PASSWORD}"}]
+    npm_config_registry: "https://${NEXUS_REGISTRY}/repository/$NPM_REPOSITORY/"
+  script:
+    - renovate
+        --platform=gitlab
+        --endpoint="${CI_SERVER_URL}/api/v4"
+        --token="$RENOVATE_GITLAB_TOKEN"
+        "$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME"
