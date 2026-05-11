@@ -16,8 +16,16 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
       - name: Install templ
-        run: go install github.com/a-h/templ/cmd/templ@v0.3.1001
+        run: |
+          TEMPL_VERSION=$(grep 'github.com/a-h/templ' go.mod | awk '{print $2}')
+          go install github.com/a-h/templ/cmd/templ@${TEMPL_VERSION}
 
       - name: Check templ is up to date
         run: make templ && git diff --exit-code
@@ -36,6 +44,12 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
 
       - uses: golangci/golangci-lint-action@v9
         with:
