@@ -30,7 +30,7 @@ proxy:
     secretName: quorum-cookie
     secretKey: cookie-secret
   openshift:
-    image: registry.access.redhat.com/openshift4/ose-oauth-proxy:v4.18
+    image: registry.access.redhat.com/openshift4/ose-oauth-proxy:v4.12.0
   oidc:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.2
     issuerURL: ""
