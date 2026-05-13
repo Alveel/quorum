@@ -37,6 +37,17 @@ variables:
 
 # ── verify ──────────────────────────────────────────────────────────────────
 
+commit-lint:
+  stage: verify
+  image: "$GO_IMAGE"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - |
+      echo "$CI_MERGE_REQUEST_TITLE" \
+        | grep -qE '^(feat|fix|chore|docs|style|refactor|test|build|ci|perf|revert)(\([^)]+\))?!?: .+' \
+        || { echo "MR title must follow Conventional Commits: https://www.conventionalcommits.org"; exit 1; }
+
 test:
   stage: verify
   image: "$GO_IMAGE"
@@ -95,6 +106,8 @@ build-image:
   image: "$BUILDAH_IMAGE"
   needs: [test, lint, helm-lint]
   rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+      when: always
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - "**/*.go"
@@ -111,16 +124,23 @@ build-image:
     - buildah login --username "$NEXUS_USER" --password "$NEXUS_PASSWORD" "$NEXUS_REGISTRY"
   script:
     - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        TAG1="${APP_IMAGE}:${CI_COMMIT_TAG}"
+        TAG2="${APP_IMAGE}:${CI_COMMIT_TAG#v}"
+      else
+        TAG1="${APP_IMAGE}:${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}"
+        TAG2="${APP_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+      fi
       buildah build \
         --storage-driver=$STORAGE_DRIVER \
         --layers \
         --build-arg GO_IMAGE=${GO_IMAGE} \
         --build-arg UBI_IMAGE=${UBI_IMAGE} \
-        --tag ${APP_IMAGE}:${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA} \
-        --tag ${APP_IMAGE}:${CI_COMMIT_SHORT_SHA} \
+        --tag "$TAG1" \
+        --tag "$TAG2" \
         -f Containerfile .
-    - buildah push --storage-driver=$STORAGE_DRIVER ${APP_IMAGE}:${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
-    - buildah push --storage-driver=$STORAGE_DRIVER ${APP_IMAGE}:${CI_COMMIT_SHORT_SHA}
+      buildah push --storage-driver=$STORAGE_DRIVER "$TAG1"
+      buildah push --storage-driver=$STORAGE_DRIVER "$TAG2"
 
 publish-chart:
   stage: release
@@ -128,15 +148,22 @@ publish-chart:
   needs: [helm-lint]
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - "deploy/helm/**"
       when: always
     - when: never
   script:
     - |
       CHART_VERSION=$(grep '^version:' deploy/helm/quorum/Chart.yaml | awk '{print $2}')
-      helm package deploy/helm/quorum --version "${CHART_VERSION}-${CI_COMMIT_SHORT_SHA}"
+      if curl -sf -u "${NEXUS_USER}:${NEXUS_PASSWORD}" \
+          "${NEXUS_HELM_URL}/quorum-${CHART_VERSION}.tgz" > /dev/null 2>&1; then
+        echo "Chart version ${CHART_VERSION} already exists. Bump version in Chart.yaml."
+        exit 1
+      fi
+      helm package deploy/helm/quorum
       curl -u "${NEXUS_USER}:${NEXUS_PASSWORD}" \
-        --upload-file quorum-${CHART_VERSION}-${CI_COMMIT_SHORT_SHA}.tgz \
-        "${NEXUS_HELM_URL}/quorum-${CHART_VERSION}-${CI_COMMIT_SHORT_SHA}.tgz"
+        --upload-file quorum-${CHART_VERSION}.tgz \
+        "${NEXUS_HELM_URL}/quorum-${CHART_VERSION}.tgz"
 
 # ── renovate (scheduled only) ────────────────────────────────────────────────
 

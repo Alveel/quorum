@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -118,7 +119,7 @@ jobs:
 
   build-image:
     needs: [changes, test, lint, helm-lint]
-    if: needs.changes.outputs.app == 'true'
+    if: github.ref_type == 'tag' || needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -129,11 +130,16 @@ jobs:
       - name: Compute image tags
         id: tags
         run: |
-          BRANCH=$(echo "${{ github.ref_name }}" | tr '/' '-')
-          echo "tags=${BRANCH}-${{ github.sha }} ${{ github.sha }}" >> $GITHUB_OUTPUT
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+            echo "tags=${VERSION} ${VERSION#v}" >> $GITHUB_OUTPUT
+          else
+            BRANCH=$(echo "${{ github.ref_name }}" | tr '/' '-')
+            echo "tags=${BRANCH}-${{ github.sha }} ${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Login to GHCR
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref_type == 'tag'
         uses: redhat-actions/podman-login@v1
         with:
           registry: ghcr.io
@@ -153,9 +159,31 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Push image
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref_type == 'tag'
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ steps.build.outputs.image }}
           tags: ${{ steps.build.outputs.tags }}
           registry: ghcr.io
+
+  commit-lint:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check PR title follows Conventional Commits
+        run: |
+          echo "${{ github.event.pull_request.title }}" \
+            | grep -qE '^(feat|fix|chore|docs|style|refactor|test|build|ci|perf|revert)(\([^)]+\))?!?: .+' \
+            || { echo "PR title must follow Conventional Commits: https://www.conventionalcommits.org"; exit 1; }
+
+  release-please:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
