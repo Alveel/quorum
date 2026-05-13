@@ -37,29 +37,35 @@ helm-lint:
 	helm lint deploy/helm/quorum -f deploy/helm/quorum/values.lint.yaml
 	helm lint deploy/helm/quorum -f deploy/helm/quorum/values.lint.httproute-oidc.yaml
 
-# Bump app version (appVersion in Chart.yaml) and create a git tag.
-# TYPE=patch|minor|major (default: patch). Then: git push && git push --tags
+# Bump app + chart version together, commit, tag, and push.
+# TYPE=patch|minor|major (default: patch).
 release:
 	@TYPE=$${TYPE:-patch}; \
-	CURRENT=$$(grep '^appVersion:' deploy/helm/quorum/Chart.yaml | awk '{print $$2}' | tr -d '"'); \
-	MAJOR=$$(echo $$CURRENT | cut -d. -f1); \
-	MINOR=$$(echo $$CURRENT | cut -d. -f2); \
-	PATCH=$$(echo $$CURRENT | cut -d. -f3); \
-	case $$TYPE in \
-	  major) NEXT="$$((MAJOR+1)).0.0" ;; \
-	  minor) NEXT="$${MAJOR}.$$((MINOR+1)).0" ;; \
-	  patch) NEXT="$${MAJOR}.$${MINOR}.$$((PATCH+1))" ;; \
-	  *) echo "TYPE must be patch, minor, or major"; exit 1 ;; \
-	esac; \
-	sed -i "s/^appVersion: .*/appVersion: \"$$NEXT\"/" deploy/helm/quorum/Chart.yaml; \
+	APP_CURRENT=$$(grep '^appVersion:' deploy/helm/quorum/Chart.yaml | awk '{print $$2}' | tr -d '"'); \
+	CHART_CURRENT=$$(grep '^version:' deploy/helm/quorum/Chart.yaml | awk '{print $$2}'); \
+	next_ver() { \
+	  MAJOR=$$(echo $$1 | cut -d. -f1); \
+	  MINOR=$$(echo $$1 | cut -d. -f2); \
+	  PATCH=$$(echo $$1 | cut -d. -f3); \
+	  case $$TYPE in \
+	    major) echo "$$((MAJOR+1)).0.0" ;; \
+	    minor) echo "$${MAJOR}.$$((MINOR+1)).0" ;; \
+	    patch) echo "$${MAJOR}.$${MINOR}.$$((PATCH+1))" ;; \
+	    *) echo "TYPE must be patch, minor, or major" >&2; exit 1 ;; \
+	  esac; \
+	}; \
+	APP_NEXT=$$(next_ver $$APP_CURRENT); \
+	CHART_NEXT=$$(next_ver $$CHART_CURRENT); \
+	sed -i "s/^appVersion: .*/appVersion: \"$$APP_NEXT\"/" deploy/helm/quorum/Chart.yaml; \
+	sed -i "s/^version: .*/version: $$CHART_NEXT/" deploy/helm/quorum/Chart.yaml; \
 	git add deploy/helm/quorum/Chart.yaml; \
-	git commit -m "chore(release): v$$NEXT"; \
-	git tag "v$$NEXT"; \
-	echo ""; \
-	echo "Tagged v$$NEXT — run: git push && git push --tags"
+	git commit -m "chore(release): v$$APP_NEXT"; \
+	git tag "v$$APP_NEXT"; \
+	git push && git push --tags; \
+	echo "Released v$$APP_NEXT (chart v$$CHART_NEXT)"
 
-# Bump chart version independently (chart template/values changes, no app change).
-# TYPE=patch|minor|major (default: patch). Then: git push
+# Bump chart version only (chart template/values changes, no app change).
+# TYPE=patch|minor|major (default: patch).
 release-chart:
 	@TYPE=$${TYPE:-patch}; \
 	CURRENT=$$(grep '^version:' deploy/helm/quorum/Chart.yaml | awk '{print $$2}'); \
@@ -75,5 +81,5 @@ release-chart:
 	sed -i "s/^version: .*/version: $$NEXT/" deploy/helm/quorum/Chart.yaml; \
 	git add deploy/helm/quorum/Chart.yaml; \
 	git commit -m "chore(release): chart v$$NEXT"; \
-	echo ""; \
-	echo "Chart bumped to v$$NEXT — run: git push"
+	git push; \
+	echo "Chart released v$$NEXT"
