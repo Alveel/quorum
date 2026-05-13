@@ -35,7 +35,7 @@ proxy:
   openshift:
     # Community build (OKD), no pull secret required.
     # Licensed build: registry.redhat.io/openshift4/ose-oauth-proxy:v4.14 (requires pull secret).
-    image: quay.io/openshift/origin-oauth-proxy:4.21
+    image: quay.io/openshift/origin-oauth-proxy:4.22
   oidc:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.2
     issuerURL: ""
