@@ -9,14 +9,14 @@ ingress:
 proxy:
   provider: oidc
   cookieSecret:
-    secretName: quorum-cookie
+    secretName: quorum-oauth-cookie
     secretKey: cookie-secret
   oidc:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.9.0
     issuerURL: https://keycloak.example.com/realms/main
     clientID: quorum
     clientSecret:
-      secretName: quorum-oidc
+      secretName: quorum-oauth-oidc
       secretKey: client-secret
     emailDomain: "*"
 
@@ -24,8 +24,10 @@ admin:
   groups: [quorum-admins]
 
 database:
-  secretName: quorum-db
+  secretName: quorum-db-url
   secretKey: DATABASE_URL
   tlsCA:
     enabled: true
-    secretName: quorum-db-ca
+    secretName: ""
+    configMapName: quorum-db-tls-ca
+    key: ca-bundle.crt

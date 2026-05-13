@@ -10,7 +10,8 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      app: ${{ steps.filter.outputs.app }}
+      app:   ${{ steps.filter.outputs.app }}
+      chart: ${{ steps.filter.outputs.chart }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -26,6 +27,8 @@ jobs:
               - 'Makefile'
               - 'migrations/**'
               - 'web/**'
+            chart:
+              - 'deploy/helm/**'
 
   test:
     runs-on: ubuntu-latest
@@ -87,8 +90,8 @@ jobs:
         run: make helm-lint
 
   publish-chart:
-    needs: [helm-lint]
-    if: github.ref == 'refs/heads/main'
+    needs: [changes, helm-lint]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.chart == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -105,10 +108,13 @@ jobs:
       - name: Package and push chart
         run: |
           CHART_VERSION=$(grep '^version:' deploy/helm/quorum/Chart.yaml | awk '{print $2}')
-          SHORT_SHA=${GITHUB_SHA::7}
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          helm package deploy/helm/quorum --version "${CHART_VERSION}-${SHORT_SHA}"
-          helm push quorum-${CHART_VERSION}-${SHORT_SHA}.tgz oci://ghcr.io/${OWNER}/charts
+          if helm show chart oci://ghcr.io/${OWNER}/charts/quorum --version "${CHART_VERSION}" > /dev/null 2>&1; then
+            echo "Chart version ${CHART_VERSION} already exists. Bump version in Chart.yaml before merging chart changes."
+            exit 1
+          fi
+          helm package deploy/helm/quorum
+          helm push quorum-${CHART_VERSION}.tgz oci://ghcr.io/${OWNER}/charts
 
   build-image:
     needs: [changes, test, lint, helm-lint]

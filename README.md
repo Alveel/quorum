@@ -41,49 +41,85 @@ Admins (members of the configured OpenShift group) can:
 
 ### Prerequisites
 
-- External PostgreSQL database (connection string only needed)
-- OpenShift cluster with `oauth-proxy` sidecar capability
-- Three existing Kubernetes Secrets (see below)
+- External PostgreSQL database
+- OpenShift 4.18+ **or** Kubernetes 1.33+ with GatewayAPI
+- Secrets pre-created in the target namespace (see below)
 
 ### Secrets to create before deploying
 
-| Secret name (default) | Key                  | Content                                                                                |
-|-----------------------|----------------------|----------------------------------------------------------------------------------------|
-| `quorum-db`           | `DATABASE_URL`       | PostgreSQL connection string, e.g. `postgres://user:pass@host:5432/db?sslmode=require` |
-| `quorum-cookie`       | `cookie-secret`      | 32 random bytes (base64), e.g. `openssl rand -base64 32`                               |
-| `quorum-tls`          | `tls.crt`, `tls.key` | TLS certificate and key for the oauth-proxy HTTPS port                                 |
+The chart references secrets by name; it never creates them. Default names follow the `quorum-db-*` / `quorum-oauth-*` convention — rename via `values.yaml` if they clash with existing resources.
 
-The chart references these secrets by name; it does not create them. This prevents secrets from appearing in rendered manifests or git history.
+| Secret (default name) | Key             | Required when            | Content                                                  |
+|-----------------------|-----------------|--------------------------|----------------------------------------------------------|
+| `quorum-db-url`       | `DATABASE_URL`  | Always                   | PostgreSQL connection string                             |
+| `quorum-oauth-cookie` | `cookie-secret` | Always                   | 32-byte random key (base64url) — encrypts session cookie |
+| `quorum-oauth-oidc`   | `client-secret` | `proxy.provider: oidc`   | OIDC client secret                                       |
+| `quorum-db-tls-ca`    | `ca.crt`        | `database.tlsCA.enabled` | CA certificate for Postgres TLS verification             |
+
+Generate the cookie secret:
+```sh
+openssl rand -base64 32 | tr '+/' '-_' | head -c 32
+```
+
+No TLS secret is needed for the proxy — it runs plain HTTP on port 4180. TLS is terminated at the ingress layer (Route `edge` or Gateway).
 
 ### Helm install
 
+**OpenShift — Route + openshift-oauth-proxy (default):**
+
 ```sh
 helm upgrade --install quorum deploy/helm/quorum \
-  --set route.host=quorum.apps.cluster.example.com \
   --set admin.groups='{platform-team}' \
   --set team.size=15 \
   --set threshold.minPresentDefault=8
+# OpenShift assigns a hostname automatically; set ingress.host to override.
+```
+
+**Kubernetes — GatewayAPI HTTPRoute + oauth2-proxy OIDC:**
+
+```sh
+helm upgrade --install quorum deploy/helm/quorum \
+  --set ingress.type=httproute \
+  --set ingress.host=quorum.example.com \
+  --set ingress.gatewayRef.name=default \
+  --set ingress.gatewayRef.namespace=gateway-system \
+  --set proxy.provider=oidc \
+  --set proxy.oidc.issuerURL=https://keycloak.example.com/realms/main \
+  --set proxy.oidc.clientID=quorum \
+  --set proxy.oidc.clientSecret.secretName=quorum-oauth-oidc \
+  --set admin.groups='{quorum-admins}'
 ```
 
 Key `values.yaml` knobs:
 
-| Value                                | Default                                               | Description                    |
-|--------------------------------------|-------------------------------------------------------|--------------------------------|
-| `image.repository`                   | `ghcr.io/alveel/quorum`                               | Container image                |
-| `image.tag`                          | `latest`                                              | Image tag                      |
-| `database.secretName`                | `quorum-db`                                           | Secret holding the DB URL      |
-| `oauthProxy.image`                   | `registry.redhat.io/openshift4/ose-oauth-proxy:v4.15` | Sidecar image                  |
-| `oauthProxy.cookieSecret.secretName` | `quorum-cookie`                                       | Cookie secret                  |
-| `oauthProxy.tls.secretName`          | `quorum-tls`                                          | TLS secret                     |
-| `route.host`                         | _(required)_                                          | Public hostname                |
-| `admin.groups`                       | `[]`                                                  | OpenShift groups granted admin |
-| `team.size`                          | `15`                                                  | Default team size              |
-| `threshold.minPresentDefault`        | `8`                                                   | Default minimum present        |
+| Value                           | Default                                     | Description                                                         |
+|---------------------------------|---------------------------------------------|---------------------------------------------------------------------|
+| `image.tag`                     | Chart.AppVersion                            | Image tag (empty = chart default)                                   |
+| `ingress.type`                  | `route`                                     | `route` (OpenShift) or `httproute` (k8s)                            |
+| `ingress.host`                  | `""`                                        | Hostname; required for httproute                                    |
+| `ingress.gatewayRef.name`       | `""`                                        | Gateway name (httproute only)                                       |
+| `ingress.gatewayRef.namespace`  | `""`                                        | Gateway namespace (httproute only)                                  |
+| `proxy.provider`                | `openshift`                                 | `openshift` or `oidc`                                               |
+| `proxy.openshift.image`         | `quay.io/openshift/origin-oauth-proxy:4.21` | openshift-oauth-proxy image (see note below)                        |
+| `proxy.oidc.issuerURL`          | `""`                                        | OIDC discovery URL (oidc only)                                      |
+| `proxy.oidc.clientID`           | `""`                                        | OIDC client ID (oidc only)                                          |
+| `proxy.oidc.emailDomain`        | `*`                                         | Allowed email domain(s) (oidc only)                                 |
+| `proxy.cookieSecret.secretName` | `quorum-oauth-cookie`                       | Cookie encryption secret                                            |
+| `database.secretName`           | `quorum-db-url`                             | Secret holding `DATABASE_URL`                                       |
+| `database.tlsCA.enabled`        | `false`                                     | Mount CA cert for Postgres TLS                                      |
+| `database.tlsCA.secretName`     | `""`                                        | Secret source — mutually exclusive with `configMapName`             |
+| `database.tlsCA.configMapName`  | `""`                                        | ConfigMap source (e.g. cert-manager trust bundle)                   |
+| `database.tlsCA.key`            | `ca.crt`                                    | Key within the Secret/ConfigMap (`ca-bundle.crt` for trust-manager) |
+| `admin.groups`                  | `[]`                                        | Groups granted admin access                                         |
+| `team.size`                     | `15`                                        | Default team size                                                   |
+| `threshold.minPresentDefault`   | `8`                                         | Default minimum present                                             |
+
+**Image note:** The default `quay.io/openshift/origin-oauth-proxy` is the OKD community build — publicly available, no pull secret needed. Red Hat ships a licensed build at `registry.redhat.io/openshift4/ose-oauth-proxy` (latest: `v4.14`) which requires a pull secret; see the [Red Hat Ecosystem Catalog](https://catalog.redhat.com/en/software/containers/openshift4/ose-oauth-proxy/5cdb2133bed8bd5717d5ae64) for available versions.
 
 Preview manifests without installing:
 
 ```sh
-helm template deploy/helm/quorum --values deploy/helm/quorum/values.yaml
+helm template quorum deploy/helm/quorum
 ```
 
 ### Environment variables (app container)
@@ -118,7 +154,7 @@ Admin access: a user is admin iff at least one of their groups (from `X-Forwarde
 
 Two supported paths:
 1. **Federate Keycloak into the cluster OAuth server** — no chart or app changes.
-2. **Swap the sidecar** — replace `openshift/oauth-proxy` with upstream `oauth2-proxy` pointed at Keycloak's discovery URL. Change the `oauthProxy.image` and args in `values.yaml` only.
+2. **Switch to OIDC provider** — set `proxy.provider: oidc` and configure `proxy.oidc.*` in `values.yaml`. The app is unaffected; only the sidecar changes.
 
 ---
 
@@ -127,7 +163,7 @@ Two supported paths:
 ### Requirements
 
 - Go 1.22+
-- Docker / Podman with Compose
+- Podman with Compose
 - [`templ`](https://templ.guide/) CLI (`go install github.com/a-h/templ/cmd/templ@latest`)
 - `golangci-lint`
 - `golang-migrate` CLI (for running migrations manually)
@@ -138,22 +174,23 @@ Two supported paths:
 make dev
 ```
 
-Starts Postgres via Docker Compose and the app on `:8080`. Auth is bypassed via `DEV_AUTH_BYPASS=true` and `DEV_USER` set in the Compose file. Set `DEV_ADMIN=true` to get admin access locally.
+Starts Postgres via `podman-compose` and the app on `:8080`. Auth is bypassed via `DEV_AUTH_BYPASS=true` and `DEV_USER` set in the Compose file. Set `DEV_ADMIN=true` to get admin access locally.
 
 The app is available at `http://localhost:8080`.
 
 ### Make targets
 
-| Target                  | What it does                                     |
-|-------------------------|--------------------------------------------------|
-| `make dev`              | Start Postgres + app (hot-reload not included)   |
-| `make build`            | Compile static binary to `./bin/server`          |
-| `make test`             | `go test ./...`                                  |
-| `make test-integration` | `go test -tags=integration ./internal/store/...` | 
-| `make lint`             | `golangci-lint run`                              |
-| `make templ`            | Regenerate Go from `*.templ` files               |
-| `make migrate`          | Apply pending migrations against `$DATABASE_URL` |
-| `make image`            | Build the Docker image                           |
+| Target                  | What it does                                      |
+|-------------------------|---------------------------------------------------|
+| `make dev`              | Start Postgres + app (hot-reload not included)    |
+| `make build`            | Compile static binary to `./bin/server`           |
+| `make test`             | `go test ./...`                                   |
+| `make test-integration` | `go test -tags=integration ./internal/store/...`  |
+| `make lint`             | `golangci-lint run`                               |
+| `make templ`            | Regenerate Go from `*.templ` files                |
+| `make migrate`          | Apply pending migrations against `$DATABASE_URL`  |
+| `make image`            | Build container image from `Containerfile`        |
+| `make helm-lint`        | Lint Helm chart against both scenario value files |
 
 Run a single test:
 
@@ -176,7 +213,7 @@ internal/
 migrations/          numbered SQL files, embedded in binary
 web/static/          htmx.min.js, pico.min.css, app.css
 deploy/helm/         Helm chart (app + oauth-proxy sidecar)
-Dockerfile           multi-stage build
+Containerfile        multi-stage build
 ```
 
 ### Templating
@@ -201,4 +238,13 @@ Admin override skips the threshold check, sets `status = 'overridden'`, and writ
 
 ### CI
 
-`.github/workflows/ci.yaml` runs `make test` and `make lint` on every push and pull request.
+`.github/workflows/ci.yaml` jobs on every push/PR:
+
+| Job           | What it does                                                                            |
+|---------------|-----------------------------------------------------------------------------------------|
+| `test`        | `make test` + `make build`; checks templ is up to date                                  |
+| `lint`        | `golangci-lint` via `make lint`                                                         |
+| `helm-lint`   | `make helm-lint` (both ingress/proxy scenarios)                                         |
+| `build-image` | Builds container image with `buildah`; pushes to `ghcr.io/alveel/quorum` on `main` only |
+
+Dependency updates are automated via Renovate (`renovate.json`).

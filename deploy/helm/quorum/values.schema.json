@@ -24,13 +24,20 @@
         "tlsCA": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["enabled", "secretName"],
+          "required": ["enabled", "secretName", "configMapName", "key"],
           "properties": {
-            "enabled":    { "type": "boolean" },
-            "secretName": { "type": "string" }
+            "enabled":       { "type": "boolean" },
+            "secretName":    { "type": "string" },
+            "configMapName": { "type": "string" },
+            "key":           { "type": "string", "minLength": 1 }
           },
-          "if":   { "properties": { "enabled": { "const": true } } },
-          "then": { "properties": { "secretName": { "minLength": 1 } } }
+          "if": { "properties": { "enabled": { "const": true } } },
+          "then": {
+            "anyOf": [
+              { "properties": { "secretName":    { "minLength": 1 } } },
+              { "properties": { "configMapName": { "minLength": 1 } } }
+            ]
+          }
         }
       }
     },

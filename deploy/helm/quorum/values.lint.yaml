@@ -6,14 +6,14 @@ ingress:
 proxy:
   provider: openshift
   cookieSecret:
-    secretName: quorum-cookie
+    secretName: quorum-oauth-cookie
     secretKey: cookie-secret
 
 admin:
   groups: [quorum-admins]
 
 database:
-  secretName: quorum-db
+  secretName: quorum-db-url
   secretKey: DATABASE_URL
   tlsCA:
     enabled: false

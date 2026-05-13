@@ -121,9 +121,17 @@ spec:
         {{- end }}
         {{- if .Values.database.tlsCA.enabled }}
         - name: db-tls-ca
+          {{- if .Values.database.tlsCA.secretName }}
           secret:
             secretName: {{ .Values.database.tlsCA.secretName }}
             items:
-              - key: ca.crt
+              - key: {{ .Values.database.tlsCA.key }}
                 path: ca.crt
+          {{- else }}
+          configMap:
+            name: {{ .Values.database.tlsCA.configMapName }}
+            items:
+              - key: {{ .Values.database.tlsCA.key }}
+                path: ca.crt
+          {{- end }}
         {{- end }}

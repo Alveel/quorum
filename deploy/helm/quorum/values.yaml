@@ -3,16 +3,19 @@ image:
   tag: ""  # defaults to .Chart.AppVersion
   pullPolicy: IfNotPresent
 
-# Name of an existing Secret containing the DB connection string.
-# The app reads DATABASE_URL from it. When database.tlsCA.enabled=true,
-# set sslmode=verify-full in DATABASE_URL. Do not include sslrootcert=
-# in the URL — PGSSLROOTCERT is injected automatically from the mounted cert.
+# Existing Secret holding the Postgres connection string for this app.
+# Rename if a DB operator already created a secret with a similar name.
+# When database.tlsCA.enabled=true, set sslmode=verify-full in DATABASE_URL.
+# Do not include sslrootcert= in the URL — PGSSLROOTCERT is injected automatically
+# from the mounted cert.
 database:
-  secretName: quorum-db
+  secretName: quorum-db-url
   secretKey: DATABASE_URL
   tlsCA:
     enabled: false
-    secretName: ""  # Secret with key: ca.crt
+    secretName: ""     # e.g. quorum-db-tls-ca — mutually exclusive with configMapName
+    configMapName: ""  # e.g. cert-manager trust bundle ConfigMap — mutually exclusive with secretName
+    key: ca.crt        # key within the Secret or ConfigMap (trust-manager may use ca-bundle.crt)
 
 ingress:
   type: route          # route | httproute
@@ -27,10 +30,12 @@ proxy:
   provider: openshift  # openshift | oidc
   # Shared cookie secret (both providers).
   cookieSecret:
-    secretName: quorum-cookie
+    secretName: quorum-oauth-cookie
     secretKey: cookie-secret
   openshift:
-    image: registry.access.redhat.com/openshift4/ose-oauth-proxy:v4.12.0
+    # Community build (OKD), no pull secret required.
+    # Licensed build: registry.redhat.io/openshift4/ose-oauth-proxy:v4.14 (requires pull secret).
+    image: quay.io/openshift/origin-oauth-proxy:4.21
   oidc:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.2
     issuerURL: ""
