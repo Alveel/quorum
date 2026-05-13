@@ -13,8 +13,8 @@ spec:
     kind: Service
     name: {{ include "quorum.fullname" . }}
   port:
-    targetPort: http
+    targetPort: proxy
   tls:
-    termination: edge
+    termination: reencrypt
     insecureEdgeTerminationPolicy: Redirect
 {{- end }}

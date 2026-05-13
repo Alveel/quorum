@@ -76,9 +76,17 @@
     "proxy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider", "cookieSecret", "openshift", "oidc"],
+      "required": ["provider", "tls", "cookieSecret", "openshift", "oidc"],
       "properties": {
         "provider": { "type": "string", "enum": ["openshift", "oidc"] },
+        "tls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["secretName"],
+          "properties": {
+            "secretName": { "type": "string" }
+          }
+        },
         "cookieSecret": {
           "type": "object",
           "additionalProperties": false,
@@ -120,6 +128,9 @@
       "if":   { "properties": { "provider": { "const": "oidc" } } },
       "then": {
         "properties": {
+          "tls": {
+            "properties": { "secretName": { "minLength": 1 } }
+          },
           "oidc": {
             "properties": {
               "issuerURL":  { "minLength": 1 },

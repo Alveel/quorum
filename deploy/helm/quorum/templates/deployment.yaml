@@ -56,10 +56,13 @@ spec:
             capabilities: { drop: [ALL] }
 
         - name: proxy
+          {{- $tlsSecret := .Values.proxy.tls.secretName | default (printf "%s-proxy-tls" (include "quorum.fullname" .)) }}
           {{- if eq .Values.proxy.provider "openshift" }}
           image: {{ .Values.proxy.openshift.image }}
           args:
-            - --http-address=:4180
+            - --https-address=:8443
+            - --tls-cert=/etc/tls/tls.crt
+            - --tls-key=/etc/tls/tls.key
             - --provider=openshift
             - --openshift-service-account={{ include "quorum.fullname" . }}
             - --upstream=http://localhost:8080
@@ -72,7 +75,9 @@ spec:
           {{- else }}
           image: {{ .Values.proxy.oidc.image }}
           args:
-            - --http-address=:4180
+            - --https-address=:8443
+            - --tls-cert-file=/etc/tls/tls.crt
+            - --tls-key-file=/etc/tls/tls.key
             - --provider=oidc
             - --oidc-issuer-url={{ .Values.proxy.oidc.issuerURL }}
             - --client-id={{ .Values.proxy.oidc.clientID }}
@@ -86,8 +91,11 @@ spec:
           {{- end }}
           ports:
             - name: proxy
-              containerPort: 4180
+              containerPort: 8443
           volumeMounts:
+            - name: proxy-tls
+              mountPath: /etc/tls
+              readOnly: true
             - name: cookie-secret
               mountPath: /etc/proxy/secrets
               readOnly: true
@@ -105,6 +113,14 @@ spec:
             capabilities: { drop: [ALL] }
 
       volumes:
+        - name: proxy-tls
+          secret:
+            secretName: {{ .Values.proxy.tls.secretName | default (printf "%s-proxy-tls" (include "quorum.fullname" .)) }}
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
         - name: cookie-secret
           secret:
             secretName: {{ .Values.proxy.cookieSecret.secretName }}

@@ -4,10 +4,14 @@ metadata:
   name: {{ include "quorum.fullname" . }}
   labels:
     {{- include "quorum.labels" . | nindent 4 }}
+  {{- if eq .Values.proxy.provider "openshift" }}
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: {{ .Values.proxy.tls.secretName | default (printf "%s-proxy-tls" (include "quorum.fullname" .)) }}
+  {{- end }}
 spec:
   selector:
     {{- include "quorum.selectorLabels" . | nindent 4 }}
   ports:
-    - name: http
-      port: 80
+    - name: proxy
+      port: 443
       targetPort: proxy

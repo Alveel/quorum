@@ -32,6 +32,11 @@ proxy:
   cookieSecret:
     secretName: quorum-oauth-cookie
     secretKey: cookie-secret
+  tls:
+    # Secret with keys tls.crt and tls.key for the proxy HTTPS listener.
+    # openshift provider: leave empty — OpenShift auto-creates it via the Service annotation.
+    # oidc provider: must reference an existing Secret.
+    secretName: ""
   openshift:
     # Community build (OKD), no pull secret required.
     # Licensed build: registry.redhat.io/openshift4/ose-oauth-proxy:v4.14 (requires pull secret).

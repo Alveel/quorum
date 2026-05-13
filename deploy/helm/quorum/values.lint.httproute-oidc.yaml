@@ -8,6 +8,8 @@ ingress:
 
 proxy:
   provider: oidc
+  tls:
+    secretName: quorum-oauth-tls
   cookieSecret:
     secretName: quorum-oauth-cookie
     secretKey: cookie-secret
@@ -21,7 +23,7 @@ proxy:
     emailDomain: "*"
 
 admin:
-  groups: [quorum-admins]
+  groups: [ quorum-admins ]
 
 database:
   secretName: quorum-db-url
@@ -31,3 +33,8 @@ database:
     secretName: ""
     configMapName: quorum-db-tls-ca
     key: ca-bundle.crt
+
+image:
+team:
+threshold:
+resources:

@@ -5,6 +5,8 @@ ingress:
 
 proxy:
   provider: openshift
+  tls:
+    secretName: ""
   cookieSecret:
     secretName: quorum-oauth-cookie
     secretKey: cookie-secret
