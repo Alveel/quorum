@@ -7,7 +7,7 @@ variables:
   # renovate: datasource=docker depName=registry.access.redhat.com/hi/go
   GO_BUILDER_TAG: "1.26-builder"
   # renovate: datasource=docker depName=registry.access.redhat.com/ubi10/ubi-micro
-  UBI_TAG: "10.1-1777857595"
+  UBI_TAG: "10.1-1778532954"
   # renovate: datasource=docker depName=golangci/golangci-lint
   GOLANGCI_TAG: "v2.12.2"
   # renovate: datasource=docker depName=alpine/helm

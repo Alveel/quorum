@@ -10,7 +10,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/server ./cmd/server
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-ARG UBI_IMAGE=registry.access.redhat.com/ubi10/ubi-micro:10.1-1777857595
+ARG UBI_IMAGE=registry.access.redhat.com/ubi10/ubi-micro:10.1-1778532954
 FROM ${UBI_IMAGE}
 
 COPY --from=builder /bin/server /bin/server
