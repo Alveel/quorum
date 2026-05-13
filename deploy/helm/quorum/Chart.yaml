@@ -2,5 +2,5 @@ apiVersion: v2
 name: quorum
 description: Team leave coverage tool
 type: application
-version: 0.2.2
+version: 0.3.0
 appVersion: "0.2.1"
