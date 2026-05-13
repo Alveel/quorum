@@ -180,17 +180,19 @@ The app is available at `http://localhost:8080`.
 
 ### Make targets
 
-| Target                  | What it does                                      |
-|-------------------------|---------------------------------------------------|
-| `make dev`              | Start Postgres + app (hot-reload not included)    |
-| `make build`            | Compile static binary to `./bin/server`           |
-| `make test`             | `go test ./...`                                   |
-| `make test-integration` | `go test -tags=integration ./internal/store/...`  |
-| `make lint`             | `golangci-lint run`                               |
-| `make templ`            | Regenerate Go from `*.templ` files                |
-| `make migrate`          | Apply pending migrations against `$DATABASE_URL`  |
-| `make image`            | Build container image from `Containerfile`        |
-| `make helm-lint`        | Lint Helm chart against both scenario value files |
+| Target                  | What it does                                                                        |
+|-------------------------|-------------------------------------------------------------------------------------|
+| `make dev`              | Start Postgres + app (hot-reload not included)                                      |
+| `make build`            | Compile static binary to `./bin/server`                                             |
+| `make test`             | `go test ./...`                                                                     |
+| `make test-integration` | `go test -tags=integration ./internal/store/...`                                    |
+| `make lint`             | `golangci-lint run`                                                                 |
+| `make templ`            | Regenerate Go from `*.templ` files                                                  |
+| `make migrate`          | Apply pending migrations against `$DATABASE_URL`                                    |
+| `make image`            | Build container image from `Containerfile`                                          |
+| `make helm-lint`        | Lint Helm chart against both scenario value files                                   |
+| `make release`          | Bump `appVersion` + chart `version`, commit, tag, push (`TYPE=patch\|minor\|major`) |
+| `make release-chart`    | Bump chart `version` only (chart-only changes), commit, push                        |
 
 Run a single test:
 

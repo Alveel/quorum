@@ -176,14 +176,3 @@ jobs:
             | grep -qE '^(feat|fix|chore|docs|style|refactor|test|build|ci|perf|revert)(\([^)]+\))?!?: .+' \
             || { echo "PR title must follow Conventional Commits: https://www.conventionalcommits.org"; exit 1; }
 
-  release-please:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: googleapis/release-please-action@v5
-        with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
