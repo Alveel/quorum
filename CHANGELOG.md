@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/Alveel/quorum/compare/v0.2.0...v0.2.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* **Containerfile:** move ARG above first FROM statement ([2e6662b](https://github.com/Alveel/quorum/commit/2e6662b3c503ef2b9c15b3f25616da5f23fc2cf9))
+* **Containerfile:** move ARG above first FROM statement ([f5e53a4](https://github.com/Alveel/quorum/commit/f5e53a4485689e4cdbb97efbfa0fdb508a7a3a1a))
+
 ## [0.2.0](https://github.com/Alveel/quorum/compare/v0.1.0...v0.2.0) (2026-05-13)
 
 
