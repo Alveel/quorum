@@ -34,7 +34,3 @@ database:
     configMapName: quorum-db-tls-ca
     key: ca-bundle.crt
 
-image:
-team:
-threshold:
-resources:
