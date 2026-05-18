@@ -15,7 +15,7 @@ variables:
   # renovate: datasource=docker depName=quay.io/containers/buildah
   BUILDAH_TAG: "v1.43.1"
   # renovate: datasource=docker depName=renovate/renovate
-  RENOVATE_TAG: "43.180-full"
+  RENOVATE_TAG: "43.185-full"
   # -- images (all pulled from Nexus) --
   GO_IMAGE: "${NEXUS_REGISTRY}/hi/go:${GO_BUILDER_TAG}"
   UBI_IMAGE: "${NEXUS_REGISTRY}/ubi10/ubi-micro:${UBI_TAG}"
