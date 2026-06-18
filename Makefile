@@ -3,7 +3,7 @@
 DEV_DB_URL ?= postgresql://quorum:quorum@127.0.0.1:5432/quorum?sslmode=disable
 
 # Local dev: start postgres, apply migrations, run app on :8080.
-dev:
+dev: build
 	podman-compose up -d db
 	DEV_AUTH_BYPASS=true DEV_USER=devuser DEV_ADMIN=true \
 	  DATABASE_URL=$(DEV_DB_URL) \

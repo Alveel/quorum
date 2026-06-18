@@ -83,6 +83,14 @@ func TP(ctx context.Context, messageID string, count int, data map[string]any) s
 	return s
 }
 
+// Lang returns the active language code ("en" or "nl") for the request.
+func Lang(ctx context.Context) string {
+	if l, _ := ctx.Value(langKey{}).(string); l != "" {
+		return l
+	}
+	return "en"
+}
+
 // SetLang handles GET /lang/{code} — sets lang cookie, redirects back.
 func SetLang(w http.ResponseWriter, r *http.Request) {
 	code := chi.URLParam(r, "code")

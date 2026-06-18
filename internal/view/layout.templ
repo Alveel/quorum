@@ -29,8 +29,10 @@ templ Layout(title, user string, isAdmin bool) {
 					}
 					<li>{ user }</li>
 					<li>
-						<a href="/lang/en" class="lang-btn outline contrast">EN</a>
-						<a href="/lang/nl" class="lang-btn outline contrast">NL</a>
+						<div role="group" class="lang-switch">
+							<a href="/lang/en" role="button" class={ "lang-btn", templ.KV("outline secondary", locale.Lang(ctx) != "en") }>EN</a>
+							<a href="/lang/nl" role="button" class={ "lang-btn", templ.KV("outline secondary", locale.Lang(ctx) != "nl") }>NL</a>
+						</div>
 					</li>
 					<li>
 						<button id="theme-toggle" class="outline contrast theme-btn" onclick="toggleTheme()"></button>
