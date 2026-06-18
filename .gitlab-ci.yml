@@ -11,7 +11,7 @@ variables:
   # renovate: datasource=docker depName=golangci/golangci-lint
   GOLANGCI_TAG: "v2.12.2"
   # renovate: datasource=docker depName=alpine/helm
-  HELM_TAG: "4.2.1"
+  HELM_TAG: "4.2.2"
   # renovate: datasource=docker depName=quay.io/containers/buildah
   BUILDAH_TAG: "v1.43.1"
   # renovate: datasource=docker depName=renovate/renovate
