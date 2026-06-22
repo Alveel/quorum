@@ -127,6 +127,84 @@ func TestCreateAbsence_StoreError_Returns500(t *testing.T) {
 	}
 }
 
+func TestCreateAbsence_Overlap_Returns422(t *testing.T) {
+	st := &fakeStore{
+		settings:   absence.Settings{TeamSize: 15, MinPresent: 8},
+		hasOverlap: true,
+	}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/absences",
+		"application/x-www-form-urlencoded",
+		strings.NewReader("start_date=2026-07-01&end_date=2026-07-05"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("want 422, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "already have leave") {
+		t.Errorf("body missing overlap message: %s", body)
+	}
+}
+
+// --- adminOverride ---
+
+func TestAdminOverride_Success_Returns303(t *testing.T) {
+	st := &fakeStore{
+		settings:  absence.Settings{TeamSize: 15, MinPresent: 8},
+		createOvr: absence.Absence{UserID: "alice", Status: absence.StatusOverridden},
+	}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	// Don't follow the redirect so we can assert the 303 + Location.
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err := client.PostForm(ts.URL+"/admin/override", map[string][]string{
+		"user_id":    {"alice"},
+		"reason":     {"critical fix"},
+		"start_date": {"2026-07-01"},
+		"end_date":   {"2026-07-05"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Errorf("want 303, got %d", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "/admin" {
+		t.Errorf("Location = %q, want /admin", loc)
+	}
+}
+
+func TestAdminOverride_StoreError_Returns500(t *testing.T) {
+	st := &fakeStore{
+		settings:     absence.Settings{TeamSize: 15, MinPresent: 8},
+		createOvrErr: errors.New("db error"),
+	}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	resp, err := http.PostForm(ts.URL+"/admin/override", map[string][]string{
+		"user_id":    {"alice"},
+		"start_date": {"2026-07-01"},
+		"end_date":   {"2026-07-05"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Errorf("want 500, got %d", resp.StatusCode)
+	}
+}
+
 // --- cancelAbsence ---
 
 func TestCancelAbsence_InvalidUUID_Returns400(t *testing.T) {
