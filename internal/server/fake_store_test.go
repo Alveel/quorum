@@ -10,28 +10,28 @@ import (
 )
 
 type fakeStore struct {
-	settings      absence.Settings
-	settingsErr   error
-	perDay        map[time.Time]int
-	perDayErr     error
-	onDay         []absence.Absence
-	onDayErr      error
-	myAbsences    []absence.Absence
-	myVacErr      error
-	allActive     []absence.Absence
-	allActiveErr  error
-	createVac     absence.Absence
-	createVacErr  error
-	createOvr     absence.Absence
-	createOvrErr  error
+	settings         absence.Settings
+	settingsErr      error
+	perDay           map[time.Time]int
+	perDayErr        error
+	onDay            []absence.Absence
+	onDayErr         error
+	myAbsences       []absence.Absence
+	myVacErr         error
+	allActive        []absence.Absence
+	allActiveErr     error
+	createVac        absence.Absence
+	createVacErr     error
+	createOvr        absence.Absence
+	createOvrErr     error
 	cancelErr        error
 	updateSettingErr error
 	upsertErr        error
-	upsertCalled  bool
-	upsertID      string
-	upsertEmail   string
-	hasOverlap    bool
-	hasOverlapErr error
+	upsertCalled     bool
+	upsertID         string
+	upsertEmail      string
+	hasOverlap       bool
+	hasOverlapErr    error
 }
 
 func (f *fakeStore) GetSettings(_ context.Context) (absence.Settings, error) {
