@@ -14,7 +14,6 @@ import (
 
 func New(cfg config.Config, st Storer, staticFS fs.FS) http.Handler {
 	r := chi.NewRouter()
-	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
