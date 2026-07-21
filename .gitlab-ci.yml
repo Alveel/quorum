@@ -102,7 +102,8 @@ helm-lint:
   rules:
     - when: always
   script:
-    - make helm-lint
+    - helm lint deploy/helm/quorum -f deploy/helm/quorum/values.lint.yaml
+    - helm lint deploy/helm/quorum -f deploy/helm/quorum/values.lint.httproute-oidc.yaml
 
 # ── release ─────────────────────────────────────────────────────────────────
 
