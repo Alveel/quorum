@@ -16,18 +16,18 @@ variables:
   BUILDAH_TAG: "v1.43.1"
   # renovate: datasource=docker depName=renovate/renovate
   RENOVATE_TAG: "43.272-full"
-  # -- images (all pulled from Nexus) --
-  GO_IMAGE: "${NEXUS_REGISTRY}/hi/go:${GO_BUILDER_TAG}"
-  UBI_IMAGE: "${NEXUS_REGISTRY}/ubi10/ubi-micro:${UBI_TAG}"
-  GOLANGCI_IMAGE: "${NEXUS_REGISTRY}/golangci/golangci-lint:${GOLANGCI_TAG}"
-  HELM_IMAGE: "${NEXUS_REGISTRY}/alpine/helm:${HELM_TAG}"
-  BUILDAH_IMAGE: "${NEXUS_REGISTRY}/buildah/stable:${BUILDAH_TAG}"
-  RENOVATE_IMAGE: "${NEXUS_REGISTRY}/renovate/renovate:${RENOVATE_TAG}"
+  # -- images (all pulled from specified proxy registry by default) --
+  GO_IMAGE: "${REGISTRY_URL}/hi/go:${GO_BUILDER_TAG}"
+  UBI_IMAGE: "${REGISTRY_URL}/ubi10/ubi-micro:${UBI_TAG}"
+  GOLANGCI_IMAGE: "${REGISTRY_URL}/golangci/golangci-lint:${GOLANGCI_TAG}"
+  HELM_IMAGE: "${REGISTRY_URL}/alpine/helm:${HELM_TAG}"
+  BUILDAH_IMAGE: "${REGISTRY_URL}/buildah/stable:${BUILDAH_TAG}"
+  RENOVATE_IMAGE: "${REGISTRY_URL}/renovate/renovate:${RENOVATE_TAG}"
   # -- app image --
-  APP_IMAGE: "${NEXUS_REGISTRY}/quorum"
+  APP_IMAGE: "${REGISTRY_URL}/quorum"
   # -- Go --
   GOPATH: "$CI_PROJECT_DIR/.cache/go"
-  GOPROXY: "https://${NEXUS_REGISTRY}/repository/go-proxy,direct"
+  GOPROXY: "https://${REGISTRY_URL}/repository/go-proxy,direct"
   GONOSUMDB: "*"
   # -- npm --
   NPM_REPOSITORY: "npm-proxy"
@@ -121,7 +121,7 @@ build-image:
       when: always
     - when: never
   before_script:
-    - buildah login --username "$NEXUS_USER" --password "$NEXUS_PASSWORD" "$NEXUS_REGISTRY"
+    - buildah login --username "$REGISTRY_USER" --password "$REGISTRY_PASSWORD" "$REGISTRY_URL"
   script:
     - |
       if [ -n "$CI_COMMIT_TAG" ]; then
@@ -155,15 +155,15 @@ publish-chart:
   script:
     - |
       CHART_VERSION=$(grep '^version:' deploy/helm/quorum/Chart.yaml | awk '{print $2}')
-      if curl -sf -u "${NEXUS_USER}:${NEXUS_PASSWORD}" \
-          "${NEXUS_HELM_URL}/quorum-${CHART_VERSION}.tgz" > /dev/null 2>&1; then
+      if curl -sf -u "${REGISTRY_USER}:${REGISTRY_PASSWORD}" \
+          "${REGISTRY_HELM_URL}/quorum-${CHART_VERSION}.tgz" > /dev/null 2>&1; then
         echo "Chart version ${CHART_VERSION} already exists. Bump version in Chart.yaml."
         exit 1
       fi
       helm package deploy/helm/quorum
-      curl -u "${NEXUS_USER}:${NEXUS_PASSWORD}" \
+      curl -u "${REGISTRY_USER}:${REGISTRY_PASSWORD}" \
         --upload-file quorum-${CHART_VERSION}.tgz \
-        "${NEXUS_HELM_URL}/quorum-${CHART_VERSION}.tgz"
+        "${REGISTRY_HELM_URL}/quorum-${CHART_VERSION}.tgz"
 
 # ── renovate (scheduled only) ────────────────────────────────────────────────
 
@@ -174,8 +174,8 @@ renovate:
     - if: $CI_PIPELINE_SOURCE == "schedule"
   variables:
     RENOVATE_HOST_RULES: >-
-      [{"matchHost":"${NEXUS_REGISTRY}","username":"${NEXUS_USER}","password":"${NEXUS_PASSWORD}"}]
-    npm_config_registry: "https://${NEXUS_REGISTRY}/repository/$NPM_REPOSITORY/"
+      [{"matchHost":"${REGISTRY_URL}","username":"${REGISTRY_USER}","password":"${REGISTRY_PASSWORD}"}]
+    npm_config_registry: "https://${REGISTRY_URL}/repository/$NPM_REPOSITORY/"
   script:
     - renovate
         --platform=gitlab
