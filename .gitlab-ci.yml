@@ -167,9 +167,9 @@ publish-chart:
         exit 1
       fi
       helm package deploy/helm/quorum
-      curl -u "${REGISTRY_USER}:${REGISTRY_PASSWORD}" \
-        --upload-file quorum-${CHART_VERSION}.tgz \
-        "${REGISTRY_HELM_URL}/quorum-${CHART_VERSION}.tgz"
+      helm push quorum-${CHART_VERSION}.tgz oci://${REGISTRY_HELM_URL} \
+        --username ${REGISTRY_USER} \
+        --password ${REGISTRY_PASSWORD}
 
 # ── renovate (scheduled only) ────────────────────────────────────────────────
 
