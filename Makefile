@@ -20,7 +20,7 @@ lint:
 
 # Regenerate Go code from *.templ files. Run after editing templates.
 templ:
-	templ generate
+	go tool templ generate
 
 # Apply migrations: start the server (which migrates then serves), then Ctrl-C.
 # Or just run `make dev` — migrations run automatically on every startup.

@@ -27,8 +27,8 @@ variables:
   APP_IMAGE: "${REGISTRY_URL}/quorum"
   # -- Go --
   GOPATH: "$CI_PROJECT_DIR/.cache/go"
-  GOPROXY: "https://${REGISTRY_URL}/repository/go-proxy,direct"
-  GOSUMDB: "sum.golang.org https://${REGISTRY_URL}/repository/raw-golang-sum-proxy/"
+  GOPROXY: "https://${GO_REGISTRY_URL}/repository/golang-proxy,direct"
+  GOSUMDB: "sum.golang.org https://${GO_REGISTRY_URL}/repository/raw-golang-sum-proxy/"
   # -- npm --
   NPM_REPOSITORY: "npm-proxy"
   # -- buildah --
@@ -73,11 +73,9 @@ test:
       when: always
     - when: never
   script:
-    - TEMPL_VERSION=$(grep 'github.com/a-h/templ' go.mod | awk '{print $2}')
-    - go install github.com/a-h/templ/cmd/templ@${TEMPL_VERSION}
-    - make templ && git diff --exit-code
-    - make test
-    - make build
+    - go tool templ generate && git diff --exit-code
+    - go test ./...
+    - CGO_ENABLED=0 go build -o bin/server ./cmd/server
 
 lint:
   stage: verify
@@ -94,7 +92,7 @@ lint:
       when: always
     - when: never
   script:
-    - make lint
+    - golangci-lint run
 
 helm-lint:
   stage: verify
