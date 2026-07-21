@@ -28,7 +28,7 @@ variables:
   # -- Go --
   GOPATH: "$CI_PROJECT_DIR/.cache/go"
   GOPROXY: "https://${REGISTRY_URL}/repository/go-proxy,direct"
-  GONOSUMDB: "*"
+  GOSUMDB: "sum.golang.org https://${REGISTRY_URL}/repository/raw-golang-sum-proxy/"
   # -- npm --
   NPM_REPOSITORY: "npm-proxy"
   # -- buildah --
