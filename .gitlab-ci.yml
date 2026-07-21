@@ -13,7 +13,7 @@ variables:
   # renovate: datasource=docker depName=alpine/helm
   HELM_TAG: "4.2.3"
   # renovate: datasource=docker depName=quay.io/containers/buildah
-  BUILDAH_TAG: "v1.43.1"
+  BUILDAH_TAG: "9.8"
   # renovate: datasource=docker depName=renovate/renovate
   RENOVATE_TAG: "43.272-full"
   # -- images (all pulled from specified proxy registry by default) --
@@ -21,7 +21,7 @@ variables:
   UBI_IMAGE: "${REGISTRY_URL}/ubi10/ubi-micro:${UBI_TAG}"
   GOLANGCI_IMAGE: "${REGISTRY_URL}/golangci/golangci-lint:${GOLANGCI_TAG}"
   HELM_IMAGE: "${REGISTRY_URL}/alpine/helm:${HELM_TAG}"
-  BUILDAH_IMAGE: "${REGISTRY_URL}/buildah/stable:${BUILDAH_TAG}"
+  BUILDAH_IMAGE: "${REGISTRY_URL}/ubi9/buildah:${BUILDAH_TAG}"
   RENOVATE_IMAGE: "${REGISTRY_URL}/renovate/renovate:${RENOVATE_TAG}"
   # -- app image --
   APP_IMAGE: "${REGISTRY_URL}/quorum"
