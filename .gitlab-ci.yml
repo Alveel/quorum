@@ -35,6 +35,11 @@ variables:
   STORAGE_DRIVER: vfs
   BUILDAH_FORMAT: docker
 
+# ── defaults ────────────────────────────────────────────────────────────────
+default:
+  tags:
+    - default
+
 # ── verify ──────────────────────────────────────────────────────────────────
 
 commit-lint:
@@ -103,6 +108,8 @@ helm-lint:
 
 build-image:
   stage: release
+  tags:
+    - buildah-build
   image: "$BUILDAH_IMAGE"
   needs: [test, lint, helm-lint]
   rules:
