@@ -142,6 +142,8 @@ build-image:
         --layers \
         --build-arg GO_IMAGE=${GO_IMAGE} \
         --build-arg UBI_IMAGE=${UBI_IMAGE} \
+        --build-arg GOPROXY="${GOPROXY}" \
+        --build-arg GOSUMDB="${GOSUMDB}" \
         --tag "$TAG1" \
         --tag "$TAG2" \
         -f Containerfile .
