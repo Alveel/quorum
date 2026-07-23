@@ -15,7 +15,7 @@ variables:
   # renovate: datasource=docker depName=quay.io/containers/buildah
   BUILDAH_TAG: "9.8"
   # renovate: datasource=docker depName=renovate/renovate
-  RENOVATE_TAG: "43.272-full"
+  RENOVATE_TAG: "43.278-full"
   # -- images (pulled from read/proxy endpoint) --
   GO_IMAGE: "${REGISTRY_PROXY_URL}/hi/go:${GO_BUILDER_TAG}"
   UBI_IMAGE: "${REGISTRY_PROXY_URL}/ubi10/ubi-micro:${UBI_TAG}"
