@@ -12,7 +12,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["\\.gitlab-ci\\.yml$"],
+      "managerFilePatterns": [
+        "/\\.gitlab-ci\\.yml$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[^\\n]+)\\n\\s+\\w+_TAG: \"(?<currentValue>[^\"]+)\""
       ]
