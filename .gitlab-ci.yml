@@ -35,10 +35,45 @@ variables:
   STORAGE_DRIVER: vfs
   BUILDAH_FORMAT: docker
 
+# ── pipeline scope ──────────────────────────────────────────────────────────
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
 # ── defaults ────────────────────────────────────────────────────────────────
 default:
   tags:
     - default
+
+# ── shared rules ────────────────────────────────────────────────────────────
+# the triggers of `test` and `lint` must be a superset of
+# `build-image`'s. `needs:` is resolved at pipeline creation, so if `lint` can
+# be excluded while `build-image` is included, the whole pipeline fails to
+# create ("`lint` does not exist in the pipeline"). One shared list; do not
+# fork it per job.
+.app-changes: &app-changes
+  - "**/*.go"
+  - "**/*.templ"
+  - go.mod
+  - go.sum
+  - "migrations/**"
+  - "web/**"
+  - "internal/locale/locales/**" # embedded via //go:embed, not matched by *.go
+  - Containerfile
+  - Makefile
+  - .gitlab-ci.yml
+
+.app-rules: &app-rules
+  # `CI_COMMIT_BRANCH` is set in scheduled pipelines too, so this guard has to
+  # come first.
+  - if: $CI_PIPELINE_SOURCE == "schedule"
+    when: never
+  - if: $CI_COMMIT_TAG # always verify a tag
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # always verify main
+  - changes: *app-changes
 
 # ── verify ──────────────────────────────────────────────────────────────────
 
@@ -60,18 +95,7 @@ test:
     key:
       files: [go.sum]
     paths: [.cache/go/pkg/mod]
-  rules:
-    - changes:
-        - "**/*.go"
-        - go.mod
-        - go.sum
-        - "**/*.templ"
-        - Containerfile
-        - Makefile
-        - "migrations/**"
-        - "web/**"
-      when: always
-    - when: never
+  rules: *app-rules
   script:
     - go tool templ generate && git diff --exit-code
     - go test ./...
@@ -84,20 +108,18 @@ lint:
     key:
       files: [go.sum]
     paths: [.cache/go/pkg/mod]
-  rules:
-    - changes:
-        - "**/*.go"
-        - go.mod
-        - go.sum
-      when: always
-    - when: never
+  rules: *app-rules
   script:
     - golangci-lint run
 
+# Deliberately unconditional: gating this on `deploy/helm/**` would let
+# `publish-chart`'s `needs:` dangle.
 helm-lint:
   stage: verify
   image: "$HELM_IMAGE"
   rules:
+    # Explicit: a job with no rules falls back to `only: [branches, tags]`,
+    # which excludes merge request pipelines.
     - when: always
   script:
     - helm lint deploy/helm/quorum -f deploy/helm/quorum/values.lint.yaml
@@ -112,20 +134,11 @@ build-image:
   image: "$BUILDAH_IMAGE"
   needs: [test, lint, helm-lint]
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
     - if: $CI_COMMIT_TAG =~ /^v/
-      when: always
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - "**/*.go"
-        - go.mod
-        - go.sum
-        - "**/*.templ"
-        - Containerfile
-        - Makefile
-        - "migrations/**"
-        - "web/**"
-      when: always
-    - when: never
+      changes: *app-changes
   before_script:
     - buildah login --username "$REGISTRY_USER" --password "$REGISTRY_PASSWORD" "$REGISTRY_WRITE_URL"
   script:
@@ -155,11 +168,11 @@ publish-chart:
   image: "$HELM_IMAGE"
   needs: [helm-lint]
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - "deploy/helm/**"
-      when: always
-    - when: never
   script:
     - |
       CHART_VERSION=$(grep '^version:' deploy/helm/quorum/Chart.yaml | awk '{print $2}')
