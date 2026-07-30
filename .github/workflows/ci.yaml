@@ -140,7 +140,7 @@ jobs:
 
       - name: Login to GHCR
         if: github.ref == 'refs/heads/main' || github.ref_type == 'tag'
-        uses: redhat-actions/podman-login@v1
+        uses: redhat-actions/podman-login@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
