@@ -160,7 +160,7 @@ jobs:
 
       - name: Push image
         if: github.ref == 'refs/heads/main' || github.ref_type == 'tag'
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: ${{ steps.build.outputs.image }}
           tags: ${{ steps.build.outputs.tags }}
