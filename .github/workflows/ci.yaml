@@ -77,7 +77,7 @@ jobs:
 
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.12.2
+          version: v2.13.2
 
   helm-lint:
     runs-on: ubuntu-latest
@@ -140,7 +140,7 @@ jobs:
 
       - name: Login to GHCR
         if: github.ref == 'refs/heads/main' || github.ref_type == 'tag'
-        uses: redhat-actions/podman-login@v1
+        uses: redhat-actions/podman-login@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -148,7 +148,7 @@ jobs:
 
       - name: Build image
         id: build
-        uses: redhat-actions/buildah-build@v2
+        uses: redhat-actions/buildah-build@v3
         with:
           image: ghcr.io/${{ github.repository }}
           tags: ${{ steps.tags.outputs.tags }}
@@ -160,7 +160,7 @@ jobs:
 
       - name: Push image
         if: github.ref == 'refs/heads/main' || github.ref_type == 'tag'
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: ${{ steps.build.outputs.image }}
           tags: ${{ steps.build.outputs.tags }}
