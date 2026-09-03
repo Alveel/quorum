@@ -9,7 +9,6 @@ import (
 type Config struct {
 	DatabaseURL       string
 	AdminGroups       []string
-	TeamSize          int
 	MinPresentDefault int
 	Port              string
 	DevAuthBypass     bool
@@ -22,7 +21,6 @@ func Load() Config {
 		DatabaseURL:       mustEnv("DATABASE_URL"),
 		Port:              envOr("PORT", "8080"),
 		MinPresentDefault: intEnvOr("MIN_PRESENT_DEFAULT", 8),
-		TeamSize:          intEnvOr("TEAM_SIZE", 15),
 		DevAuthBypass:     os.Getenv("DEV_AUTH_BYPASS") == "true",
 		DevUser:           os.Getenv("DEV_USER"),
 		DevAdmin:          os.Getenv("DEV_ADMIN") == "true",

@@ -54,9 +54,6 @@ proxy:
 admin:
   groups: []
 
-team:
-  size: 15
-
 threshold:
   minPresentDefault: 8
 

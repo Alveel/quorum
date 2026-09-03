@@ -25,9 +25,3 @@ type Absence struct {
 	CreatedAt time.Time
 	CreatedBy string
 }
-
-type Settings struct {
-	MinPresent    int
-	TeamSize      int
-	WeekendCounts bool
-}

@@ -3,7 +3,7 @@
 Guidance to Claude Code (claude.ai/code) for this repo.
 
 ## What this is
-Small internal tool, ~15-person team. Register leave, avoid coverage gaps. Each calendar day colored by people-present count (green → yellow → orange → red). Registration pushing any day below admin-configured **minimum present** = **hard-denied**; **admin** can override.
+Small internal tool, ~15-person team. Register leave, avoid coverage gaps. Each member has a weekly working-day pattern and holds one or more admin-defined **roles**, each with its own minimum-present quota; global minimum-present applies too. Each calendar day colored by worst-of (global vs every role) coverage ratio (green → yellow → orange → red), or a distinct "none" state on a day nobody's scheduled (holiday, or off-pattern). Registration pushing any day's global or role coverage strictly below its minimum = **hard-denied**; **admin** can override. A member with zero roles assigned is blocked from registering leave until they configure themselves via `/settings`.
 
 ## Stack at a glance
 - **Go** + **chi** + **templ** + **HTMX** — server-rendered, no JS build pipeline
@@ -21,7 +21,7 @@ make build        # static binary into ./bin/server
 make image        # podman build of the runtime image
 helm template deploy/helm/quorum   # render manifests for review
 ```
-Single test: `go test ./internal/leave -run TestThreshold_DeniesWhenBelowMin`.
+Single test: `go test ./internal/absence -run TestCoverage_ColorBoundaries_MatchOldSemantics`.
 
 ## Architecture notes that aren't obvious from the code
 
@@ -34,11 +34,13 @@ Local dev: `DEV_AUTH_BYPASS=true` + `DEV_USER=<name>` + optional `DEV_ADMIN=true
 
 Admin role = group claim: user is admin iff any `X-Forwarded-Groups` value is in comma-separated `ADMIN_GROUPS` env var. No per-user admin flag in app — group membership is source of truth.
 
-### One `present(d)` function, two consumers
-Threshold check (denial) and heatmap coloring **must** use same `present(d int) (count int)` in `internal/leave`. Divergence = users see "green" days that are actually blocked, or vice versa. Keep single shared function.
+### One `Coverage()` function, three consumers
+Heatmap coloring, the absence-request denial check (`OffendingDays`), and the admin role-feasibility warning (`FeasibilityWarnings`) **must** all read from the same `Coverage(roster, absences, holidays, roles, globalMinPresent, from, to) map[time.Time]DayCoverage` in `internal/absence`. Divergence = users see "green" days that are actually blocked, or vice versa. Keep a single shared function — don't recompute presence counts anywhere else.
+
+`Coverage` also encodes two asymmetries worth knowing: a role/global count at *exactly* its minimum renders red (`Failing`, `<=`) but is still approvable (`OffendingDays`, strict `<`) — matches the pre-role-quota threshold behavior. And a day nobody's scheduled on (holiday, or off everyone's weekly pattern) is `NoOneScheduled`/color `"none"`, never red — `Expected == 0` must not fall through to the red-at-zero path.
 
 ### Overrides change status, not counts
-Admin overrides set `leave.status = 'overridden'`, write `audit_log` row. Overridden leave **do** count against `present(d)` like any approved leave — override only bypassed *creation* check. UI shows hatched overlay so team spots intentionally-thin days.
+Admin overrides set `absence.status = 'overridden'`, write `audit_log` row. Overridden absences **do** count against `Coverage()` like any approved absence — override only bypassed *creation* check. UI shows hatched overlay so team spots intentionally-thin days.
 
 ### Migrations on startup
 App applies pending migrations on boot before serving traffic. Don't run separate `Job`; chart relies on single Deployment. If migrations need gating (e.g. destructive change), introduce separate sub-command before adding job infrastructure.
@@ -47,10 +49,12 @@ App applies pending migrations on boot before serving traffic. Don't run separat
 - `cmd/server/` — main; wires config, store, server
 - `internal/config` — env loading
 - `internal/auth` — header parsing, admin check, dev bypass
-- `internal/leave` — domain types and single `present(d)` / threshold logic
+- `internal/absence` — domain types, roster/role/holiday types, single `Coverage()` function
+- `internal/holidaysync` — offline public-holiday calendar sync (rickar/cal), kept out of `internal/absence` so the domain package stays dependency-free
 - `internal/store` — Postgres queries
 - `internal/server` — chi router, middleware, handlers
-- `internal/view` — templ components (heatmap, forms, admin)
+- `internal/view` — templ components (heatmap, forms, admin, roster/roles/holidays, member settings)
+- `internal/locale` — en/nl i18n (go-i18n), date formatting
 - `migrations/` — numbered SQL files, embedded
 - `web/static/` — htmx, css
 - `deploy/helm/quorum/` — chart with app + oauth-proxy sidecar

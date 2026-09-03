@@ -12,6 +12,7 @@ import (
 
 	"github.com/alveel/quorum/internal/absence"
 	"github.com/alveel/quorum/internal/config"
+	"github.com/alveel/quorum/internal/store"
 )
 
 // newTestServer wires a chi router with dev auth bypass and the given store fake.
@@ -29,8 +30,28 @@ func newTestServer(st Storer) *httptest.Server {
 
 // --- createAbsence ---
 
+func TestCreateAbsence_NotConfigured_Returns422(t *testing.T) {
+	ts := newTestServer(&fakeStore{settings: absence.Settings{MinPresent: 8}})
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/absences",
+		"application/x-www-form-urlencoded",
+		strings.NewReader("start_date=2026-07-06&end_date=2026-07-06"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("want 422, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "Settings") {
+		t.Errorf("body missing configure-first message: %s", body)
+	}
+}
+
 func TestCreateAbsence_InvalidDates_Returns422(t *testing.T) {
-	ts := newTestServer(&fakeStore{settings: absence.Settings{TeamSize: 15, MinPresent: 8}})
+	ts := newTestServer(&fakeStore{settings: absence.Settings{MinPresent: 8}, member: testUserMember()})
 	defer ts.Close()
 
 	resp, err := http.Post(ts.URL+"/absences",
@@ -46,11 +67,22 @@ func TestCreateAbsence_InvalidDates_Returns422(t *testing.T) {
 }
 
 func TestCreateAbsence_ThresholdDenied_Returns422(t *testing.T) {
-	// 14 have absence Jul 7 → 1 present; adding requester → 0 < min=8.
+	// 14 other roster members absent Jul 7 (Tue); adding requester's candidate absence
+	// drops present to 0 < min=8.
 	jul7 := time.Date(2026, 7, 7, 0, 0, 0, 0, time.UTC)
+	roster := oneRoleRoster()
+	var others []absence.Absence
+	for i := 1; i < len(roster); i++ {
+		others = append(others, absence.Absence{
+			UserID: roster[i].ID, StartDate: jul7, EndDate: jul7, Status: absence.StatusApproved,
+		})
+	}
 	st := &fakeStore{
-		settings: absence.Settings{TeamSize: 15, MinPresent: 8, WeekendCounts: true},
-		perDay:   map[time.Time]int{jul7: 14},
+		settings:        absence.Settings{MinPresent: 8},
+		member:          testUserMember(),
+		roster:          roster,
+		roles:           oneRole(),
+		absencesInRange: others,
 	}
 	ts := newTestServer(st)
 	defer ts.Close()
@@ -73,7 +105,10 @@ func TestCreateAbsence_ThresholdDenied_Returns422(t *testing.T) {
 
 func TestCreateAbsence_Success_Returns200WithOOBSwaps(t *testing.T) {
 	st := &fakeStore{
-		settings: absence.Settings{TeamSize: 15, MinPresent: 8},
+		settings: absence.Settings{MinPresent: 8},
+		member:   testUserMember(),
+		roster:   oneRoleRoster(),
+		roles:    oneRole(),
 		createVac: absence.Absence{
 			UserID:    "testuser",
 			StartDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
@@ -109,7 +144,10 @@ func TestCreateAbsence_Success_Returns200WithOOBSwaps(t *testing.T) {
 
 func TestCreateAbsence_StoreError_Returns500(t *testing.T) {
 	st := &fakeStore{
-		settings:     absence.Settings{TeamSize: 15, MinPresent: 8},
+		settings:     absence.Settings{MinPresent: 8},
+		member:       testUserMember(),
+		roster:       oneRoleRoster(),
+		roles:        oneRole(),
 		createVacErr: errors.New("db error"),
 	}
 	ts := newTestServer(st)
@@ -129,7 +167,8 @@ func TestCreateAbsence_StoreError_Returns500(t *testing.T) {
 
 func TestCreateAbsence_Overlap_Returns422(t *testing.T) {
 	st := &fakeStore{
-		settings:   absence.Settings{TeamSize: 15, MinPresent: 8},
+		settings:   absence.Settings{MinPresent: 8},
+		member:     testUserMember(),
 		hasOverlap: true,
 	}
 	ts := newTestServer(st)
@@ -154,10 +193,7 @@ func TestCreateAbsence_Overlap_Returns422(t *testing.T) {
 // --- adminOverride ---
 
 func TestAdminOverride_Success_Returns303(t *testing.T) {
-	st := &fakeStore{
-		settings:  absence.Settings{TeamSize: 15, MinPresent: 8},
-		createOvr: absence.Absence{UserID: "alice", Status: absence.StatusOverridden},
-	}
+	st := &fakeStore{createOvr: absence.Absence{UserID: "alice", Status: absence.StatusOverridden}}
 	ts := newTestServer(st)
 	defer ts.Close()
 
@@ -184,10 +220,7 @@ func TestAdminOverride_Success_Returns303(t *testing.T) {
 }
 
 func TestAdminOverride_StoreError_Returns500(t *testing.T) {
-	st := &fakeStore{
-		settings:     absence.Settings{TeamSize: 15, MinPresent: 8},
-		createOvrErr: errors.New("db error"),
-	}
+	st := &fakeStore{createOvrErr: errors.New("db error")}
 	ts := newTestServer(st)
 	defer ts.Close()
 
@@ -208,7 +241,7 @@ func TestAdminOverride_StoreError_Returns500(t *testing.T) {
 // --- cancelAbsence ---
 
 func TestCancelAbsence_InvalidUUID_Returns400(t *testing.T) {
-	ts := newTestServer(&fakeStore{settings: absence.Settings{TeamSize: 15, MinPresent: 8}})
+	ts := newTestServer(&fakeStore{})
 	defer ts.Close()
 
 	req, _ := http.NewRequest("DELETE", ts.URL+"/absences/not-a-uuid", nil)
@@ -223,10 +256,7 @@ func TestCancelAbsence_InvalidUUID_Returns400(t *testing.T) {
 }
 
 func TestCancelAbsence_StoreError_Returns500(t *testing.T) {
-	st := &fakeStore{
-		settings:  absence.Settings{TeamSize: 15, MinPresent: 8},
-		cancelErr: errors.New("not found or not cancellable"),
-	}
+	st := &fakeStore{cancelErr: errors.New("not found or not cancellable")}
 	ts := newTestServer(st)
 	defer ts.Close()
 
@@ -242,7 +272,7 @@ func TestCancelAbsence_StoreError_Returns500(t *testing.T) {
 }
 
 func TestCancelAbsence_Success_RendersFragments(t *testing.T) {
-	ts := newTestServer(&fakeStore{settings: absence.Settings{TeamSize: 15, MinPresent: 8}})
+	ts := newTestServer(&fakeStore{})
 	defer ts.Close()
 
 	req, _ := http.NewRequest("DELETE", ts.URL+"/absences/00000000-0000-0000-0000-000000000001", nil)
@@ -267,7 +297,7 @@ func TestCancelAbsence_Success_RendersFragments(t *testing.T) {
 // --- dayDetail ---
 
 func TestDayDetail_BadDate_Returns400(t *testing.T) {
-	ts := newTestServer(&fakeStore{settings: absence.Settings{TeamSize: 15, MinPresent: 8}})
+	ts := newTestServer(&fakeStore{})
 	defer ts.Close()
 
 	resp, err := http.Get(ts.URL + "/day/not-a-date")
@@ -281,8 +311,10 @@ func TestDayDetail_BadDate_Returns400(t *testing.T) {
 }
 
 func TestDayDetail_Success_RendersPanel(t *testing.T) {
+	// Jul 6 2026 is a Monday — a normal working day for a Mon-Fri roster.
 	st := &fakeStore{
-		settings: absence.Settings{TeamSize: 15, MinPresent: 8},
+		settings: absence.Settings{MinPresent: 8},
+		roster:   fifteenMemberRoster(),
 		onDay: []absence.Absence{
 			{
 				UserName:  "Alice",
@@ -295,7 +327,7 @@ func TestDayDetail_Success_RendersPanel(t *testing.T) {
 	ts := newTestServer(st)
 	defer ts.Close()
 
-	resp, err := http.Get(ts.URL + "/day/2026-07-05")
+	resp, err := http.Get(ts.URL + "/day/2026-07-06")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,13 +347,13 @@ func TestDayDetail_Success_RendersPanel(t *testing.T) {
 
 func TestDayDetail_StoreError_Returns500(t *testing.T) {
 	st := &fakeStore{
-		settings: absence.Settings{TeamSize: 15, MinPresent: 8},
+		settings: absence.Settings{MinPresent: 8},
 		onDayErr: errors.New("db error"),
 	}
 	ts := newTestServer(st)
 	defer ts.Close()
 
-	resp, err := http.Get(ts.URL + "/day/2026-07-05")
+	resp, err := http.Get(ts.URL + "/day/2026-07-06")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,7 +382,7 @@ func TestAdminPage_GetSettingsError_Returns500(t *testing.T) {
 
 func TestAdminPage_ListAllActiveError_Returns500(t *testing.T) {
 	st := &fakeStore{
-		settings:     absence.Settings{TeamSize: 15, MinPresent: 8},
+		settings:     absence.Settings{MinPresent: 8},
 		allActiveErr: errors.New("db error"),
 	}
 	ts := newTestServer(st)
@@ -366,15 +398,34 @@ func TestAdminPage_ListAllActiveError_Returns500(t *testing.T) {
 	}
 }
 
+func TestAdminPage_Success_Returns200(t *testing.T) {
+	st := &fakeStore{
+		settings: absence.Settings{MinPresent: 8, HolidayCountry: "nl"},
+		roster:   fifteenMemberRoster(),
+		roles:    oneRole(),
+	}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+}
+
 // --- adminSettings ---
 
 func TestAdminSettings_InvalidMinPresent_Returns400(t *testing.T) {
-	ts := newTestServer(&fakeStore{settings: absence.Settings{TeamSize: 15, MinPresent: 8}})
+	ts := newTestServer(&fakeStore{settings: absence.Settings{MinPresent: 8}})
 	defer ts.Close()
 
 	resp, err := http.Post(ts.URL+"/admin/settings",
 		"application/x-www-form-urlencoded",
-		strings.NewReader("min_present=notanumber&team_size=15&weekend_counts=false"))
+		strings.NewReader("min_present=notanumber"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,13 +435,13 @@ func TestAdminSettings_InvalidMinPresent_Returns400(t *testing.T) {
 	}
 }
 
-func TestAdminSettings_InvalidTeamSize_Returns400(t *testing.T) {
-	ts := newTestServer(&fakeStore{settings: absence.Settings{TeamSize: 15, MinPresent: 8}})
+func TestAdminSettings_UnsupportedCountry_Returns400(t *testing.T) {
+	ts := newTestServer(&fakeStore{settings: absence.Settings{MinPresent: 8}})
 	defer ts.Close()
 
 	resp, err := http.Post(ts.URL+"/admin/settings",
 		"application/x-www-form-urlencoded",
-		strings.NewReader("min_present=8&team_size=notanumber&weekend_counts=false"))
+		strings.NewReader("min_present=8&holiday_country=zz"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +453,7 @@ func TestAdminSettings_InvalidTeamSize_Returns400(t *testing.T) {
 
 func TestAdminSettings_UpdateError_Returns500(t *testing.T) {
 	st := &fakeStore{
-		settings:         absence.Settings{TeamSize: 15, MinPresent: 8},
+		settings:         absence.Settings{MinPresent: 8},
 		updateSettingErr: errors.New("db error"),
 	}
 	ts := newTestServer(st)
@@ -410,12 +461,219 @@ func TestAdminSettings_UpdateError_Returns500(t *testing.T) {
 
 	resp, err := http.Post(ts.URL+"/admin/settings",
 		"application/x-www-form-urlencoded",
-		strings.NewReader("min_present=8&team_size=15&weekend_counts=false"))
+		strings.NewReader("min_present=8"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Errorf("want 500, got %d", resp.StatusCode)
+	}
+}
+
+// --- member settings (self-service) ---
+
+func TestMemberSettings_Get_Returns200(t *testing.T) {
+	ts := newTestServer(&fakeStore{member: testUserMember(), roles: oneRole()})
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/settings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+}
+
+// TestMemberSettings_Post_UpdatesCallerNotArbitraryUser is the IDOR guard: even if the
+// posted form includes a user_id field, the target must always be the authenticated
+// dev-bypass user ("testuser"), never whatever the form claims.
+func TestMemberSettings_Post_UpdatesCallerNotArbitraryUser(t *testing.T) {
+	st := &fakeStore{roles: oneRole()}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err := client.PostForm(ts.URL+"/settings", map[string][]string{
+		"user_id": {"someone-else"},
+		"wd":      {"1", "2", "3", "4", "5"},
+		"role_id": {"1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Errorf("want 303, got %d", resp.StatusCode)
+	}
+	if st.updateMemberSettingsUserID != "testuser" {
+		t.Errorf("UpdateMemberSettings target = %q, want %q (IDOR guard)", st.updateMemberSettingsUserID, "testuser")
+	}
+}
+
+func TestMemberSettings_Post_UnknownRoleID_Returns400(t *testing.T) {
+	ts := newTestServer(&fakeStore{roles: oneRole()})
+	defer ts.Close()
+
+	resp, err := http.PostForm(ts.URL+"/settings", map[string][]string{
+		"role_id": {"999"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("want 400, got %d", resp.StatusCode)
+	}
+}
+
+// --- admin roster ---
+
+func TestAdminCreateRosterMember_Success_Returns303(t *testing.T) {
+	ts := newTestServer(&fakeStore{})
+	defer ts.Close()
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err := client.PostForm(ts.URL+"/admin/roster", map[string][]string{"id": {"bob"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Errorf("want 303, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminCreateRosterMember_MissingID_Returns400(t *testing.T) {
+	ts := newTestServer(&fakeStore{})
+	defer ts.Close()
+
+	resp, err := http.PostForm(ts.URL+"/admin/roster", map[string][]string{"id": {""}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("want 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminUpdateMember_TargetsURLParamUser(t *testing.T) {
+	st := &fakeStore{roles: oneRole()}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err := client.PostForm(ts.URL+"/admin/roster/bob", map[string][]string{
+		"display_name": {"Bob"},
+		"active":       {"true"},
+		"wd":           {"1", "2", "3", "4", "5"},
+		"role_id":      {"1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Errorf("want 303, got %d", resp.StatusCode)
+	}
+	if st.updateMemberSettingsUserID != "bob" {
+		t.Errorf("UpdateMemberSettings target = %q, want %q", st.updateMemberSettingsUserID, "bob")
+	}
+}
+
+// --- admin roles ---
+
+func TestAdminCreateRole_Success_Returns303(t *testing.T) {
+	ts := newTestServer(&fakeStore{})
+	defer ts.Close()
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err := client.PostForm(ts.URL+"/admin/roles", map[string][]string{
+		"name": {"DBA"}, "min_present": {"1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Errorf("want 303, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminDeleteRole_Success_Returns303(t *testing.T) {
+	ts := newTestServer(&fakeStore{})
+	defer ts.Close()
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err := client.PostForm(ts.URL+"/admin/roles/1/delete", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Errorf("want 303, got %d", resp.StatusCode)
+	}
+}
+
+// --- admin holidays ---
+
+func TestAdminAddHoliday_DuplicateDate_Returns422(t *testing.T) {
+	st := &fakeStore{createHolidayErr: store.ErrDuplicateHoliday}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	resp, err := http.PostForm(ts.URL+"/admin/holidays", map[string][]string{
+		"date": {"2026-01-01"}, "name": {"New Year"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("want 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminSyncHolidays_NoCountryConfigured_Returns422(t *testing.T) {
+	ts := newTestServer(&fakeStore{settings: absence.Settings{MinPresent: 8}})
+	defer ts.Close()
+
+	resp, err := http.PostForm(ts.URL+"/admin/holidays/sync", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("want 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminSyncHolidays_Success_Returns303(t *testing.T) {
+	ts := newTestServer(&fakeStore{settings: absence.Settings{MinPresent: 8, HolidayCountry: "nl"}})
+	defer ts.Close()
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err := client.PostForm(ts.URL+"/admin/holidays/sync", map[string][]string{"year": {"2026"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Errorf("want 303, got %d", resp.StatusCode)
 	}
 }

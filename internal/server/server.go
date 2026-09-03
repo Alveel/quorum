@@ -40,11 +40,26 @@ func New(cfg config.Config, st Storer, staticFS fs.FS) http.Handler {
 		r.Post("/absences", h.createAbsence)
 		r.Delete("/absences/{id}", h.cancelAbsence)
 
+		r.Get("/settings", h.memberSettings)
+		r.Post("/settings", h.updateMemberSettings)
+
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequireAdmin)
 			r.Get("/admin", h.adminPage)
 			r.Post("/admin/settings", h.adminSettings)
 			r.Post("/admin/override", h.adminOverride)
+
+			r.Get("/admin/roster/{id}", h.adminEditMemberPage)
+			r.Post("/admin/roster", h.adminCreateRosterMember)
+			r.Post("/admin/roster/{id}", h.adminUpdateMember)
+
+			r.Post("/admin/roles", h.adminCreateRole)
+			r.Post("/admin/roles/{id}", h.adminUpdateRole)
+			r.Post("/admin/roles/{id}/delete", h.adminDeleteRole)
+
+			r.Post("/admin/holidays", h.adminAddHoliday)
+			r.Post("/admin/holidays/{date}/delete", h.adminDeleteHoliday)
+			r.Post("/admin/holidays/sync", h.adminSyncHolidays)
 		})
 	})
 

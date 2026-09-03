@@ -1,0 +1,66 @@
+package view
+
+import (
+	"context"
+	"fmt"
+	"github.com/alveel/quorum/internal/locale"
+)
+
+templ HolidaysSection(holidays []HolidayRow, currentCountry string) {
+	<section>
+		<h3>{ locale.T(ctx, "holidays_heading") }</h3>
+		<table>
+			<thead>
+				<tr>
+					<th>{ locale.T(ctx, "col_date") }</th>
+					<th>{ locale.T(ctx, "col_holiday_name") }</th>
+					<th>{ locale.T(ctx, "col_source") }</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, hrow := range holidays {
+					<tr>
+						<td>{ hrow.Date.Format("2006-01-02") }</td>
+						<td>{ hrow.Name }</td>
+						<td>{ sourceLabel(ctx, hrow.Source) }</td>
+						<td>
+							<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/admin/holidays/%s/delete", hrow.Date.Format("2006-01-02"))) }>
+								<button type="submit">{ locale.T(ctx, "btn_delete_holiday") }</button>
+							</form>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		<form method="POST" action="/admin/holidays">
+			<div class="grid">
+				<label>
+					{ locale.T(ctx, "col_date") }
+					<input type="date" name="date" required/>
+				</label>
+				<label>
+					{ locale.T(ctx, "col_holiday_name") }
+					<input type="text" name="name" required/>
+				</label>
+			</div>
+			<button type="submit">{ locale.T(ctx, "btn_add_holiday") }</button>
+		</form>
+		<form method="POST" action="/admin/holidays/sync">
+			<div class="grid">
+				<label>
+					{ locale.T(ctx, "label_sync_year") }
+					<input type="number" name="year"/>
+				</label>
+			</div>
+			<button type="submit" disabled?={ currentCountry == "" }>{ locale.T(ctx, "btn_sync_holidays") }</button>
+		</form>
+	</section>
+}
+
+func sourceLabel(ctx context.Context, source string) string {
+	if source == "manual" {
+		return locale.T(ctx, "source_manual")
+	}
+	return locale.T(ctx, "source_imported")
+}

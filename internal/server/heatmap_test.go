@@ -8,10 +8,13 @@ import (
 	"github.com/alveel/quorum/internal/view"
 )
 
-func emptyPerDay() map[time.Time]int { return map[time.Time]int{} }
-
-func defaultSettings() absence.Settings {
-	return absence.Settings{TeamSize: 15, MinPresent: 8}
+// emptyCov computes a full-year Coverage() result with no roster/roles/holidays — every
+// day is NoOneScheduled. Used by tests that only care about calendar structure (blanks,
+// weekend flags, month names), not coverage numbers.
+func emptyCov(year int) map[time.Time]absence.DayCoverage {
+	yearStart := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
+	yearEnd := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
+	return absence.Coverage(nil, nil, nil, nil, 8, yearStart, yearEnd)
 }
 
 func countBlanks(days []view.DayCell) int {
@@ -35,14 +38,14 @@ func countNonBlanks(days []view.DayCell) int {
 }
 
 func TestBuildHeatmap_AlwaysReturns12Months(t *testing.T) {
-	h := buildHeatmap(2026, emptyPerDay(), defaultSettings())
+	h := buildHeatmap(2026, emptyCov(2026), 8)
 	if len(h.Months) != 12 {
 		t.Fatalf("want 12 months, got %d", len(h.Months))
 	}
 }
 
 func TestBuildHeatmap_MetadataFields(t *testing.T) {
-	h := buildHeatmap(2026, emptyPerDay(), absence.Settings{TeamSize: 12, MinPresent: 5})
+	h := buildHeatmap(2026, emptyCov(2026), 5)
 	if h.Year != 2026 {
 		t.Errorf("Year: want 2026, got %d", h.Year)
 	}
@@ -55,14 +58,11 @@ func TestBuildHeatmap_MetadataFields(t *testing.T) {
 	if h.MinPresent != 5 {
 		t.Errorf("MinPresent: want 5, got %d", h.MinPresent)
 	}
-	if h.TeamSize != 12 {
-		t.Errorf("TeamSize: want 12, got %d", h.TeamSize)
-	}
 }
 
 // 2024 Jan 1 = Monday → 0 blank cells before day 1.
 func TestBuildHeatmap_BlankCellsMonday(t *testing.T) {
-	h := buildHeatmap(2024, emptyPerDay(), defaultSettings())
+	h := buildHeatmap(2024, emptyCov(2024), 8)
 	jan := h.Months[0]
 	if jan.Days[0].Blank {
 		t.Error("first cell should not be blank when month starts on Monday")
@@ -77,7 +77,7 @@ func TestBuildHeatmap_BlankCellsMonday(t *testing.T) {
 
 // 2026 Jan 1 = Thursday → 3 blank cells (Mon, Tue, Wed) before day 1.
 func TestBuildHeatmap_BlankCellsThursday(t *testing.T) {
-	h := buildHeatmap(2026, emptyPerDay(), defaultSettings())
+	h := buildHeatmap(2026, emptyCov(2026), 8)
 	jan := h.Months[0]
 	for i := 0; i < 3; i++ {
 		if !jan.Days[i].Blank {
@@ -94,7 +94,7 @@ func TestBuildHeatmap_BlankCellsThursday(t *testing.T) {
 
 // 2023 Jan 1 = Sunday → 6 blank cells (Mon–Sat) before day 1.
 func TestBuildHeatmap_BlankCellsSunday(t *testing.T) {
-	h := buildHeatmap(2023, emptyPerDay(), defaultSettings())
+	h := buildHeatmap(2023, emptyCov(2023), 8)
 	jan := h.Months[0]
 	for i := 0; i < 6; i++ {
 		if !jan.Days[i].Blank {
@@ -108,7 +108,7 @@ func TestBuildHeatmap_BlankCellsSunday(t *testing.T) {
 
 // 2024 is a leap year → February has 29 days.
 func TestBuildHeatmap_LeapDay(t *testing.T) {
-	h := buildHeatmap(2024, emptyPerDay(), defaultSettings())
+	h := buildHeatmap(2024, emptyCov(2024), 8)
 	feb := h.Months[1]
 	nonBlanks := countNonBlanks(feb.Days)
 	if nonBlanks != 29 {
@@ -118,7 +118,7 @@ func TestBuildHeatmap_LeapDay(t *testing.T) {
 
 // In 2026, Jan 3 = Saturday, Jan 4 = Sunday → IsWeekend=true; Jan 5 Mon → false.
 func TestBuildHeatmap_WeekendFlag(t *testing.T) {
-	h := buildHeatmap(2026, emptyPerDay(), defaultSettings())
+	h := buildHeatmap(2026, emptyCov(2026), 8)
 	jan := h.Months[0]
 	for _, cell := range jan.Days {
 		if cell.Blank {
@@ -133,11 +133,20 @@ func TestBuildHeatmap_WeekendFlag(t *testing.T) {
 	}
 }
 
-// 14 people have absence on Jan 5 → present=1 < min=8 → Color="red".
-func TestBuildHeatmap_CellColorFromPerDay(t *testing.T) {
+// 14 of 15 roster members absent Jan 5 2026 (Monday) → present=1 < min=8 → Color="red".
+func TestBuildHeatmap_CellColorFromCoverage(t *testing.T) {
 	jan5 := time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)
-	perDay := map[time.Time]int{jan5: 14}
-	h := buildHeatmap(2026, perDay, defaultSettings())
+	roster := fifteenMemberRoster()
+	var absences []absence.Absence
+	for i := 0; i < 14; i++ {
+		absences = append(absences, absence.Absence{
+			UserID: roster[i].ID, StartDate: jan5, EndDate: jan5, Status: absence.StatusApproved,
+		})
+	}
+	yearStart := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	yearEnd := time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)
+	cov := absence.Coverage(roster, absences, nil, nil, 8, yearStart, yearEnd)
+	h := buildHeatmap(2026, cov, 8)
 	jan := h.Months[0]
 	for _, cell := range jan.Days {
 		if !cell.Blank && cell.Date.Day() == 5 {
@@ -156,7 +165,7 @@ func TestBuildHeatmap_CellColorFromPerDay(t *testing.T) {
 // Each month name should be the 3-char abbreviation.
 func TestBuildHeatmap_MonthNames(t *testing.T) {
 	want := []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
-	h := buildHeatmap(2026, emptyPerDay(), defaultSettings())
+	h := buildHeatmap(2026, emptyCov(2026), 8)
 	for i, m := range h.Months {
 		if m.Name != want[i] {
 			t.Errorf("month[%d]: want %q, got %q", i, want[i], m.Name)

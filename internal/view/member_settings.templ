@@ -1,0 +1,71 @@
+package view
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"github.com/alveel/quorum/internal/locale"
+)
+
+templ MemberSettingsPage(d MemberSettingsData) {
+	@Layout(locale.T(ctx, "member_settings_heading")+" — Quorum", d.User, d.IsAdmin) {
+		<h2>{ locale.T(ctx, "member_settings_heading") }</h2>
+		<form method="POST" action={ templ.SafeURL(memberSettingsAction(d)) }>
+			if !d.IsSelf {
+				<div class="grid">
+					<label>
+						{ locale.T(ctx, "label_display_name") }
+						<input type="text" name="display_name" value={ d.DisplayName }/>
+					</label>
+					<label>
+						<input type="checkbox" name="active" value="true" checked?={ d.Active }/>
+						{ locale.T(ctx, "col_active") }
+					</label>
+				</div>
+			}
+			<fieldset>
+				<legend>{ locale.T(ctx, "label_working_days") }</legend>
+				for _, wd := range weekdayOptions(ctx) {
+					<label>
+						<input type="checkbox" name="wd" value={ fmt.Sprint(wd.Value) } checked?={ d.WorkingDays&(1<<uint(wd.Value)) != 0 }/>
+						{ wd.Label }
+					</label>
+				}
+			</fieldset>
+			<fieldset>
+				<legend>{ locale.T(ctx, "label_roles") }</legend>
+				for _, ro := range d.Roles {
+					<label>
+						<input type="checkbox" name="role_id" value={ fmt.Sprint(ro.ID) } checked?={ ro.Selected }/>
+						{ ro.Name }
+					</label>
+				}
+			</fieldset>
+			<button type="submit">{ locale.T(ctx, "btn_save_member_settings") }</button>
+		</form>
+	}
+}
+
+func memberSettingsAction(d MemberSettingsData) string {
+	if d.IsSelf {
+		return "/settings"
+	}
+	return fmt.Sprintf("/admin/roster/%s", d.TargetUserID)
+}
+
+type weekdayOption struct {
+	Value int
+	Label string
+}
+
+// weekdayOptions returns Mon..Sun in display order, each carrying the time.Weekday bit
+// index (Sun=0..Sat=6) its checkbox writes.
+func weekdayOptions(ctx context.Context) []weekdayOption {
+	labels := strings.Split(locale.T(ctx, "weekdays"), ",")
+	order := [7]int{1, 2, 3, 4, 5, 6, 0} // Mon..Sun
+	out := make([]weekdayOption, 7)
+	for i, v := range order {
+		out[i] = weekdayOption{Value: v, Label: labels[i]}
+	}
+	return out
+}

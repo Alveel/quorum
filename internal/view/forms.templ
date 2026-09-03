@@ -101,12 +101,23 @@ templ FormSuccess() {
 	<div class="success-banner" role="alert">{ locale.T(ctx, "absence_registered") }</div>
 }
 
+templ ConfigurePrompt() {
+	<section>
+		<p>{ locale.T(ctx, "configure_roles_prompt") }</p>
+		<a href="/settings" role="button">{ locale.T(ctx, "configure_roles_link") }</a>
+	</section>
+}
+
 templ IndexPage(d PageData) {
 	@Layout("Quorum", d.User, d.IsAdmin) {
 		<div class="index-layout">
 			@Heatmap(d.Heatmap)
 			<aside>
-				@AbsenceForm()
+				if d.Configured {
+					@AbsenceForm()
+				} else {
+					@ConfigurePrompt()
+				}
 				@MyAbsences(d.MyAbsences)
 			</aside>
 		</div>

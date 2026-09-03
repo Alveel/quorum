@@ -41,12 +41,11 @@ func truncateAll(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL not set")
 	}
 	_, err := testPool.Exec(context.Background(), `
-		TRUNCATE users, absence, audit_log RESTART IDENTITY CASCADE;
+		TRUNCATE users, absence, audit_log, roles, user_roles, holidays RESTART IDENTITY CASCADE;
 		DELETE FROM settings;
 		INSERT INTO settings (key, value, updated_at, updated_by) VALUES
-		  ('min_present',   '8',     now(), 'system'),
-		  ('team_size',     '15',    now(), 'system'),
-		  ('weekend_counts','false', now(), 'system');
+		  ('min_present',     '8',    now(), 'system'),
+		  ('holiday_country', '"nl"', now(), 'system');
 	`)
 	if err != nil {
 		t.Fatalf("truncateAll: %v", err)

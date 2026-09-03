@@ -1,0 +1,59 @@
+package view
+
+import (
+	"fmt"
+	"github.com/alveel/quorum/internal/locale"
+)
+
+templ RolesSection(roles []RoleRow) {
+	<section>
+		<h3>{ locale.T(ctx, "roles_heading") }</h3>
+		<table>
+			<thead>
+				<tr>
+					<th>{ locale.T(ctx, "col_role_name") }</th>
+					<th>{ locale.T(ctx, "col_members") }</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, ro := range roles {
+					<tr>
+						<td>
+							<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/admin/roles/%d", ro.ID)) } class="inline-form">
+								<input type="text" name="name" value={ ro.Name } required/>
+								<input type="number" name="min_present" value={ fmt.Sprint(ro.MinPresent) } min="0" required aria-label={ locale.T(ctx, "col_min_present") }/>
+								<button type="submit">{ locale.T(ctx, "btn_save_role") }</button>
+							</form>
+						</td>
+						<td>
+							{ fmt.Sprint(ro.MemberCount) }
+							if len(ro.InfeasibleDates) > 0 {
+								<br/>
+								<small class="role-warning">{ locale.T(ctx, "role_infeasible_warning", map[string]any{"Count": len(ro.InfeasibleDates)}) }</small>
+							}
+						</td>
+						<td>
+							<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/admin/roles/%d/delete", ro.ID)) }>
+								<button type="submit">{ locale.T(ctx, "btn_delete_role") }</button>
+							</form>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		<form method="POST" action="/admin/roles">
+			<div class="grid">
+				<label>
+					{ locale.T(ctx, "col_role_name") }
+					<input type="text" name="name" required/>
+				</label>
+				<label>
+					{ locale.T(ctx, "label_role_min_present") }
+					<input type="number" name="min_present" min="0" value="0" required/>
+				</label>
+			</div>
+			<button type="submit">{ locale.T(ctx, "btn_add_role") }</button>
+		</form>
+	</section>
+}

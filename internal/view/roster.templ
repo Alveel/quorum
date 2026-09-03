@@ -1,0 +1,65 @@
+package view
+
+import (
+	"fmt"
+	"strings"
+	"github.com/alveel/quorum/internal/locale"
+)
+
+templ RosterSection(roster []RosterRow) {
+	<section>
+		<h3>{ locale.T(ctx, "roster_heading") }</h3>
+		<table>
+			<thead>
+				<tr>
+					<th>{ locale.T(ctx, "col_user") }</th>
+					<th>{ locale.T(ctx, "col_active") }</th>
+					<th>{ locale.T(ctx, "col_working_days") }</th>
+					<th>{ locale.T(ctx, "col_roles") }</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, m := range roster {
+					<tr>
+						<td>{ m.DisplayName }</td>
+						<td>{ fmt.Sprint(m.Active) }</td>
+						<td>{ workingDaysLabel(m.WorkingDays) }</td>
+						<td>{ strings.Join(m.Roles, ", ") }</td>
+						<td><a href={ templ.SafeURL(fmt.Sprintf("/admin/roster/%s", m.ID)) } role="button" class="outline secondary">{ locale.T(ctx, "btn_edit") }</a></td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		<form method="POST" action="/admin/roster">
+			<div class="grid">
+				<label>
+					{ locale.T(ctx, "label_username_id") }
+					<input type="text" name="id" required/>
+				</label>
+				<label>
+					{ locale.T(ctx, "label_display_name") }
+					<input type="text" name="display_name"/>
+				</label>
+			</div>
+			<button type="submit">{ locale.T(ctx, "btn_add_member") }</button>
+		</form>
+	</section>
+}
+
+// workingDaysLabel renders the Mon..Sun weekdays whose bit is set in wd, using the
+// time.Weekday bit layout (bit i = weekday i, Sun=0..Sat=6).
+func workingDaysLabel(wd uint8) string {
+	names := [7]string{"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"}
+	order := [7]int{1, 2, 3, 4, 5, 6, 0} // Mon..Sun
+	var parts []string
+	for _, i := range order {
+		if wd&(1<<uint(i)) != 0 {
+			parts = append(parts, names[i])
+		}
+	}
+	if len(parts) == 0 {
+		return "—"
+	}
+	return strings.Join(parts, ",")
+}

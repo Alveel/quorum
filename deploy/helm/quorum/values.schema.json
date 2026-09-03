@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["image", "database", "ingress", "proxy", "admin", "team", "threshold", "resources"],
+  "required": ["image", "database", "ingress", "proxy", "admin", "threshold", "resources"],
   "properties": {
     "image": {
       "type": "object",
@@ -152,14 +152,6 @@
           "type": "array",
           "items": { "type": "string" }
         }
-      }
-    },
-    "team": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["size"],
-      "properties": {
-        "size": { "type": "integer", "minimum": 1 }
       }
     },
     "threshold": {

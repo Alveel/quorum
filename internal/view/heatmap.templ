@@ -3,8 +3,8 @@ package view
 import (
 	"fmt"
 	"strings"
-	"github.com/alveel/quorum/internal/locale"
 	"github.com/alveel/quorum/internal/absence"
+	"github.com/alveel/quorum/internal/locale"
 )
 
 templ Heatmap(d HeatmapData) {
@@ -35,7 +35,9 @@ templ heatmapInner(d HeatmapData) {
 		<span class="day-cell yellow">≥50%</span>
 		<span class="day-cell orange">&gt;min</span>
 		<span class="day-cell red">≤min ({ fmt.Sprint(d.MinPresent) })</span>
+		<span class="day-cell none">{ locale.T(ctx, "legend_none") }</span>
 	</div>
+	<p class="legend-note">{ locale.T(ctx, "legend_role_note") }</p>
 	<div id="day-detail"></div>
 }
 
@@ -61,7 +63,7 @@ templ DaySquare(c DayCell) {
 	} else {
 		<span
 			class={ "day-cell", c.Color, templ.KV("override", c.HasOverride), templ.KV("weekend", c.IsWeekend) }
-			title={ fmt.Sprintf("%s — %d present", locale.FormatDateShort(ctx, c.Date), c.Present) }
+			title={ daySquareTitle(c) }
 			data-date={ c.Date.Format("2006-01-02") }
 			hx-get={ fmt.Sprintf("/day/%s", c.Date.Format("2006-01-02")) }
 			hx-target="#day-detail"
@@ -72,24 +74,44 @@ templ DaySquare(c DayCell) {
 	}
 }
 
-templ DayDetail(date string, absences []absence.Absence, present, teamSize int) {
+func daySquareTitle(c DayCell) string {
+	if c.NoOneScheduled {
+		return fmt.Sprintf("%s — nobody scheduled", c.Date.Format("02 Jan"))
+	}
+	return fmt.Sprintf("%s — %d/%d present", c.Date.Format("02 Jan"), c.Present, c.Expected)
+}
+
+templ DayDetail(d DayDetailData) {
 	<div class="day-detail-panel">
-		<strong>{ date }</strong>
-		<span class="day-detail-count">{ locale.T(ctx, "present_count", map[string]any{"Present": present, "TeamSize": teamSize}) }</span>
-		if len(absences) == 0 {
-			<p class="day-detail-empty">{ locale.T(ctx, "everyone_present") }</p>
+		<strong>{ d.Date }</strong>
+		if d.NoOneScheduled {
+			<p class="day-detail-empty">{ locale.T(ctx, "day_detail_no_one_scheduled") }</p>
 		} else {
-			<ul class="day-detail-list">
-				for _, v := range absences {
-					<li>
-						<span class="day-detail-name">{ v.UserName }</span>
-						<span class="day-detail-period">{ locale.FormatDateShort(ctx, v.StartDate) } – { locale.FormatDateMedium(ctx, v.EndDate) }</span>
-						if v.Status == absence.StatusOverridden {
-							<small class="day-detail-override">{ locale.T(ctx, "label_override_marker") }</small>
-						}
-					</li>
-				}
-			</ul>
+			<span class="day-detail-count">{ locale.T(ctx, "present_count", map[string]any{"Present": d.Present, "Expected": d.Expected}) }</span>
+			if len(d.PerRole) > 0 {
+				<ul class="day-detail-roles">
+					for _, rr := range d.PerRole {
+						<li class={ templ.KV("role-failing", rr.Failing) }>
+							{ rr.Name }: { fmt.Sprintf("%d/%d", rr.Present, rr.Expected) } ({ locale.T(ctx, "col_min_present") }: { fmt.Sprint(rr.Min) })
+						</li>
+					}
+				</ul>
+			}
+			if len(d.Absences) == 0 {
+				<p class="day-detail-empty">{ locale.T(ctx, "everyone_present") }</p>
+			} else {
+				<ul class="day-detail-list">
+					for _, v := range d.Absences {
+						<li>
+							<span class="day-detail-name">{ v.UserName }</span>
+							<span class="day-detail-period">{ locale.FormatDateShort(ctx, v.StartDate) } – { locale.FormatDateMedium(ctx, v.EndDate) }</span>
+							if v.Status == absence.StatusOverridden {
+								<small class="day-detail-override">{ locale.T(ctx, "label_override_marker") }</small>
+							}
+						</li>
+					}
+				</ul>
+			}
 		}
 	</div>
 }

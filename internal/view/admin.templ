@@ -19,18 +19,21 @@ templ AdminPage(d AdminData) {
 						<input type="number" name="min_present" value={ fmt.Sprint(d.Settings.MinPresent) } min="0" required/>
 					</label>
 					<label>
-						{ locale.T(ctx, "setting_team_size") }
-						<input type="number" name="team_size" value={ fmt.Sprint(d.Settings.TeamSize) } min="1" required/>
+						{ locale.T(ctx, "setting_holiday_country") }
+						<select name="holiday_country">
+							for _, c := range d.CountryOptions {
+								<option value={ c } selected?={ c == d.Settings.HolidayCountry }>{ c }</option>
+							}
+						</select>
 					</label>
 				</div>
-				<label>
-					<input type="checkbox" name="weekend_counts" value="true"
-						if d.Settings.WeekendCounts { checked }/>
-					{ locale.T(ctx, "setting_weekend_counts") }
-				</label>
 				<button type="submit">{ locale.T(ctx, "btn_save_settings") }</button>
 			</form>
 		</section>
+
+		@RosterSection(d.Roster)
+		@RolesSection(d.Roles)
+		@HolidaysSection(d.Holidays, d.Settings.HolidayCountry)
 
 		<section>
 			<h3>{ locale.T(ctx, "all_active_absences") }</h3>

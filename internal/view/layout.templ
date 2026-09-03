@@ -27,6 +27,7 @@ templ Layout(title, user string, isAdmin bool) {
 					if isAdmin {
 						<li><a href="/admin">{ locale.T(ctx, "nav_admin") }</a></li>
 					}
+					<li><a href="/settings">{ locale.T(ctx, "nav_settings") }</a></li>
 					<li>{ user }</li>
 					<li>
 						<div role="group" class="lang-switch">
