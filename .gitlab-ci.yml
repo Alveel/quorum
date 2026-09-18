@@ -5,7 +5,7 @@ stages:
 variables:
   # -- image tags --
   # renovate: datasource=docker depName=registry.access.redhat.com/hi/go
-  GO_BUILDER_TAG: "1.26-builder"
+  GO_BUILDER_TAG: "1.27-builder"
   # renovate: datasource=docker depName=registry.access.redhat.com/ubi10/ubi-micro
   UBI_TAG: "10.2-1787684489"
   # renovate: datasource=docker depName=golangci/golangci-lint
