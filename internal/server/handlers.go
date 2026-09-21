@@ -15,41 +15,15 @@ import (
 	"github.com/alveel/quorum/internal/absence"
 	"github.com/alveel/quorum/internal/auth"
 	"github.com/alveel/quorum/internal/config"
+	"github.com/alveel/quorum/internal/coverage"
 	"github.com/alveel/quorum/internal/locale"
 	"github.com/alveel/quorum/internal/view"
 )
 
 type handlers struct {
-	cfg   config.Config
-	store Storer
-}
-
-// loadCoverageInputs fetches the three roster-side inputs Coverage() needs. Shared by
-// index, dayDetail, createAbsence, and adminPage so they all compute coverage from the
-// same underlying data.
-func (h *handlers) loadCoverageInputs(ctx context.Context) ([]absence.Member, []absence.Role, map[time.Time]bool, error) {
-	roster, err := h.store.ListRoster(ctx)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("list roster: %w", err)
-	}
-	roles, err := h.store.ListRoles(ctx)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("list roles: %w", err)
-	}
-	holidayRows, err := h.store.ListHolidays(ctx)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("list holidays: %w", err)
-	}
-	return roster, roles, absence.HolidaySet(holidayRows), nil
-}
-
-func findMember(roster []absence.Member, id string) absence.Member {
-	for _, m := range roster {
-		if m.ID == id {
-			return m
-		}
-	}
-	return absence.Member{}
+	cfg      config.Config
+	store    Storer
+	coverage *coverage.Querier
 }
 
 func (h *handlers) index(w http.ResponseWriter, r *http.Request) {
@@ -61,23 +35,11 @@ func (h *handlers) index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	settings, err := h.store.GetSettings(r.Context())
-	if err != nil {
-		http.Error(w, "load settings: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	roster, roles, holidays, err := h.loadCoverageInputs(r.Context())
-	if err != nil {
-		http.Error(w, "load coverage inputs: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	yearStart := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	yearEnd := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
-	absences, err := h.store.ListAbsencesInRange(r.Context(), yearStart, yearEnd)
+	snap, err := h.coverage.ForRange(r.Context(), yearStart, yearEnd)
 	if err != nil {
-		http.Error(w, "load heatmap: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "load coverage: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -87,10 +49,9 @@ func (h *handlers) index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cov := absence.Coverage(roster, absences, holidays, roles, settings.MinPresent, yearStart, yearEnd)
-	heatmap := buildHeatmap(year, cov, settings.MinPresent)
+	heatmap := buildHeatmap(year, snap.Days, snap.Settings.MinPresent)
 
-	me := findMember(roster, u.ID)
+	me := snap.Member(u.ID)
 	page := view.PageData{
 		User:       u.ID,
 		IsAdmin:    u.Admin,
@@ -143,28 +104,16 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 
 	note := r.FormValue("note")
 
-	settings, err := h.store.GetSettings(r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	roster, roles, holidays, err := h.loadCoverageInputs(r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	absences, err := h.store.ListAbsencesInRange(r.Context(), start, end)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// Evaluate the request against the coverage it would produce, by counting it
+	// before it exists.
 	candidate := absence.Absence{UserID: u.ID, StartDate: start, EndDate: end, Status: absence.StatusApproved}
-	merged := append(append([]absence.Absence{}, absences...), candidate)
+	snap, err := h.coverage.ForRange(r.Context(), start, end, candidate)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	cov := absence.Coverage(roster, merged, holidays, roles, settings.MinPresent, start, end)
-	offending := absence.OffendingDays(cov, me, start, end)
+	offending := absence.OffendingDays(snap.Days, me, start, end)
 	if len(offending) > 0 {
 		dates := make([]string, len(offending))
 		for i, d := range offending {
@@ -173,7 +122,7 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if err := view.FormError(
 			locale.TP(r.Context(), "err_coverage", len(offending), map[string]any{
-				"Min":   settings.MinPresent,
+				"Min":   snap.Settings.MinPresent,
 				"Count": len(offending),
 			}),
 			dates,
@@ -192,21 +141,20 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 	year := start.Year()
 	yearStart := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	yearEnd := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
-	yearAbsences, err := h.store.ListAbsencesInRange(r.Context(), yearStart, yearEnd)
+	yearSnap, err := h.coverage.ForRange(r.Context(), yearStart, yearEnd)
 	if err != nil {
-		slog.Warn("oob refresh: ListAbsencesInRange", "err", err)
+		slog.Warn("oob refresh: coverage", "err", err)
 	}
 	myAbsences, err2 := h.store.ListMyAbsences(r.Context(), u.ID)
 	if err2 != nil {
 		slog.Warn("oob refresh: ListMyAbsences", "err", err2)
 	}
-	yearCov := absence.Coverage(roster, yearAbsences, holidays, roles, settings.MinPresent, yearStart, yearEnd)
 
 	// OOB elements appended after primary response content.
 	if err := view.FormSuccess().Render(r.Context(), w); err != nil {
 		slog.Debug("render", "handler", "createAbsence", "err", err)
 	}
-	if err := view.HeatmapOOB(buildHeatmap(year, yearCov, settings.MinPresent)).Render(r.Context(), w); err != nil {
+	if err := view.HeatmapOOB(buildHeatmap(year, yearSnap.Days, yearSnap.Settings.MinPresent)).Render(r.Context(), w); err != nil {
 		slog.Debug("render", "handler", "createAbsence", "err", err)
 	}
 	if err := view.MyAbsencesOOB(myAbsences).Render(r.Context(), w); err != nil {
@@ -229,28 +177,19 @@ func (h *handlers) cancelAbsence(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	yearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
 	yearEnd := time.Date(now.Year(), 12, 31, 0, 0, 0, 0, time.UTC)
-	settings, err := h.store.GetSettings(r.Context())
+	snap, err := h.coverage.ForRange(r.Context(), yearStart, yearEnd)
 	if err != nil {
-		slog.Warn("oob refresh: GetSettings", "err", err)
-	}
-	roster, roles, holidays, err := h.loadCoverageInputs(r.Context())
-	if err != nil {
-		slog.Warn("oob refresh: loadCoverageInputs", "err", err)
-	}
-	yearAbsences, err := h.store.ListAbsencesInRange(r.Context(), yearStart, yearEnd)
-	if err != nil {
-		slog.Warn("oob refresh: ListAbsencesInRange", "err", err)
+		slog.Warn("oob refresh: coverage", "err", err)
 	}
 	myAbsences, err := h.store.ListMyAbsences(r.Context(), u.ID)
 	if err != nil {
 		slog.Warn("oob refresh: ListMyAbsences", "err", err)
 	}
-	cov := absence.Coverage(roster, yearAbsences, holidays, roles, settings.MinPresent, yearStart, yearEnd)
 
 	if err := view.MyAbsences(myAbsences).Render(r.Context(), w); err != nil {
 		slog.Debug("render", "handler", "cancelAbsence", "err", err)
 	}
-	if err := view.HeatmapOOB(buildHeatmap(now.Year(), cov, settings.MinPresent)).Render(r.Context(), w); err != nil {
+	if err := view.HeatmapOOB(buildHeatmap(now.Year(), snap.Days, snap.Settings.MinPresent)).Render(r.Context(), w); err != nil {
 		slog.Debug("render", "handler", "cancelAbsence", "err", err)
 	}
 }
@@ -263,33 +202,19 @@ func (h *handlers) dayDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings, err := h.store.GetSettings(r.Context())
+	snap, err := h.coverage.ForRange(r.Context(), date, date)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	roster, roles, holidays, err := h.loadCoverageInputs(r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	onDay, err := h.store.AbsenceOnDay(r.Context(), date)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	cov := absence.Coverage(roster, onDay, holidays, roles, settings.MinPresent, date, date)
-	dc := cov[date]
+	dc := snap.Days[date]
 
 	failing := make(map[absence.RoleID]bool, len(dc.Failing))
 	for _, rid := range dc.Failing {
 		failing[rid] = true
 	}
 	var perRole []view.RoleDetailRow
-	for _, ro := range roles {
+	for _, ro := range snap.Roles {
 		rc := dc.PerRole[ro.ID]
 		if rc.Expected == 0 {
 			continue
@@ -306,7 +231,7 @@ func (h *handlers) dayDetail(w http.ResponseWriter, r *http.Request) {
 		Expected:       dc.Expected,
 		NoOneScheduled: dc.NoOneScheduled,
 		PerRole:        perRole,
-		Absences:       onDay,
+		Absences:       snap.Absences,
 	}
 	if err := view.DayDetail(data).Render(r.Context(), w); err != nil {
 		slog.Debug("render", "handler", "dayDetail", "err", err)

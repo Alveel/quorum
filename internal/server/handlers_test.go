@@ -333,7 +333,7 @@ func TestDayDetail_Success_RendersPanel(t *testing.T) {
 	st := &fakeStore{
 		settings: absence.Settings{MinPresent: 8},
 		roster:   fifteenMemberRoster(),
-		onDay: []absence.Absence{
+		absencesInRange: []absence.Absence{
 			{
 				UserName:  "Alice",
 				StartDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
@@ -365,8 +365,8 @@ func TestDayDetail_Success_RendersPanel(t *testing.T) {
 
 func TestDayDetail_StoreError_Returns500(t *testing.T) {
 	st := &fakeStore{
-		settings: absence.Settings{MinPresent: 8},
-		onDayErr: errors.New("db error"),
+		settings:           absence.Settings{MinPresent: 8},
+		absencesInRangeErr: errors.New("db error"),
 	}
 	ts := newTestServer(st)
 	defer ts.Close()
@@ -432,6 +432,41 @@ func TestAdminPage_Success_Returns200(t *testing.T) {
 	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminPage_RoleShortOfQuota_RendersWarning(t *testing.T) {
+	// role1 has a quota of 5 but only one holder, so every scheduled day in the
+	// lookahead is infeasible. The absences below are now loaded into the snapshot the
+	// admin page computes from, where previously it passed none: this pins that they
+	// don't move the warning, because feasibility reads Expected, which no absence
+	// changes.
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	st := &fakeStore{
+		settings: absence.Settings{MinPresent: 8},
+		roster:   oneRoleRoster(),
+		roles:    []absence.Role{{ID: 1, Name: "role1", MinPresent: 5}},
+		absencesInRange: []absence.Absence{{
+			UserID:    "testuser",
+			StartDate: today,
+			EndDate:   today.AddDate(0, 0, 180),
+			Status:    absence.StatusApproved,
+		}},
+	}
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "role-warning") {
+		t.Error("admin page missing role feasibility warning")
 	}
 }
 

@@ -240,26 +240,10 @@ func (s *Store) ListAllActive(ctx context.Context) ([]absence.Absence, error) {
 	return scanAbsencesWithName(rows)
 }
 
-// AbsenceOnDay returns all active absences covering a specific date, with user display name.
-func (s *Store) AbsenceOnDay(ctx context.Context, date time.Time) ([]absence.Absence, error) {
-	rows, err := s.pool.Query(ctx, `
-		SELECT v.id, v.user_id, u.display_name, v.start_date, v.end_date, v.note, v.status, v.created_at, v.created_by
-		FROM absence v
-		JOIN users u ON u.id = v.user_id
-		WHERE v.status IN ('approved', 'overridden')
-		  AND $1 BETWEEN v.start_date AND v.end_date
-		ORDER BY v.start_date, v.user_id
-	`, date)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanAbsencesWithName(rows)
-}
-
 // ListAbsencesInRange returns all active absences overlapping [from,to], with user display
 // name. Used by Coverage() callers (heatmap, denial check) which need per-member/per-role
-// attribution, not just a per-day count.
+// attribution, not just a per-day count. Ordering is deterministic so a single-day range
+// can back the day-detail panel, which renders these rows directly.
 func (s *Store) ListAbsencesInRange(ctx context.Context, from, to time.Time) ([]absence.Absence, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT v.id, v.user_id, u.display_name, v.start_date, v.end_date, v.note, v.status, v.created_at, v.created_by
@@ -267,7 +251,7 @@ func (s *Store) ListAbsencesInRange(ctx context.Context, from, to time.Time) ([]
 		JOIN users u ON u.id = v.user_id
 		WHERE v.status IN ('approved', 'overridden')
 		  AND v.start_date <= $2 AND v.end_date >= $1
-		ORDER BY v.start_date
+		ORDER BY v.start_date, v.user_id
 	`, from, to)
 	if err != nil {
 		return nil, err

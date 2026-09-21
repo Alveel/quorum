@@ -18,7 +18,6 @@ type Storer interface {
 
 	// absences
 	ListAbsencesInRange(ctx context.Context, from, to time.Time) ([]absence.Absence, error)
-	AbsenceOnDay(ctx context.Context, date time.Time) ([]absence.Absence, error)
 	ListMyAbsences(ctx context.Context, userID string) ([]absence.Absence, error)
 	ListAllActive(ctx context.Context) ([]absence.Absence, error)
 	CreateAbsence(ctx context.Context, userID, createdBy, note string, start, end time.Time) (absence.Absence, error)

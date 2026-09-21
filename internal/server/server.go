@@ -9,6 +9,7 @@ import (
 
 	"github.com/alveel/quorum/internal/auth"
 	"github.com/alveel/quorum/internal/config"
+	"github.com/alveel/quorum/internal/coverage"
 	"github.com/alveel/quorum/internal/locale"
 )
 
@@ -27,7 +28,7 @@ func New(cfg config.Config, st Storer, staticFS fs.FS) http.Handler {
 	// Language switching — no auth required.
 	r.Get("/lang/{code}", locale.SetLang)
 
-	h := &handlers{cfg: cfg, store: st}
+	h := &handlers{cfg: cfg, store: st, coverage: coverage.New(st)}
 
 	// All other routes require authentication.
 	r.Group(func(r chi.Router) {

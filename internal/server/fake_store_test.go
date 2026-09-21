@@ -15,8 +15,6 @@ type fakeStore struct {
 	settingsErr        error
 	absencesInRange    []absence.Absence
 	absencesInRangeErr error
-	onDay              []absence.Absence
-	onDayErr           error
 	myAbsences         []absence.Absence
 	myVacErr           error
 	allActive          []absence.Absence
@@ -71,10 +69,6 @@ func (f *fakeStore) UpdateSetting(_ context.Context, _ string, _ any, _ string) 
 
 func (f *fakeStore) ListAbsencesInRange(_ context.Context, _, _ time.Time) ([]absence.Absence, error) {
 	return f.absencesInRange, f.absencesInRangeErr
-}
-
-func (f *fakeStore) AbsenceOnDay(_ context.Context, _ time.Time) ([]absence.Absence, error) {
-	return f.onDay, f.onDayErr
 }
 
 func (f *fakeStore) ListMyAbsences(_ context.Context, _ string) ([]absence.Absence, error) {

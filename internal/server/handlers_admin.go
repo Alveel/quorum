@@ -20,24 +20,9 @@ import (
 
 func (h *handlers) adminPage(w http.ResponseWriter, r *http.Request) {
 	u := auth.FromContext(r.Context())
-	settings, err := h.store.GetSettings(r.Context())
-	if err != nil {
-		http.Error(w, "load settings: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
 	absences, err := h.store.ListAllActive(r.Context())
 	if err != nil {
 		http.Error(w, "load absences: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	roster, roles, holidays, err := h.loadCoverageInputs(r.Context())
-	if err != nil {
-		http.Error(w, "load coverage inputs: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	holidayRows, err := h.store.ListHolidays(r.Context())
-	if err != nil {
-		http.Error(w, "load holidays: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -45,8 +30,17 @@ func (h *handlers) adminPage(w http.ResponseWriter, r *http.Request) {
 	// already fall short of its quota before anyone even books leave?
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	windowEnd := today.AddDate(0, 0, 180)
-	cov := absence.Coverage(roster, nil, holidays, roles, settings.MinPresent, today, windowEnd)
-	warnings := absence.FeasibilityWarnings(cov)
+	snap, err := h.coverage.ForRange(r.Context(), today, windowEnd)
+	if err != nil {
+		http.Error(w, "load coverage: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// FeasibilityWarnings reads only Expected and NoOneScheduled, both of which are
+	// absence-independent, so the absences the snapshot carries don't affect it.
+	warnings := absence.FeasibilityWarnings(snap.Days)
+	// Named locals so the view-mapping block below reads unchanged; that block is its
+	// own question (see the mapping decision ticket) and isn't touched here.
+	settings, roster, roles, holidayRows := snap.Settings, snap.Roster, snap.Roles, snap.Holidays
 
 	roleNameByID := make(map[absence.RoleID]string, len(roles))
 	for _, ro := range roles {
