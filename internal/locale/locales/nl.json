@@ -86,5 +86,10 @@
 
   "legend_none":            { "other": "niemand ingeroosterd" },
   "legend_role_note":       { "other": "Een dag kan ook rood zijn omdat een specifieke rol onderbezet is — open de dag voor details." },
-  "day_detail_no_one_scheduled": { "other": "Niemand is ingeroosterd om deze dag te werken." }
+  "day_detail_no_one_scheduled": { "other": "Niemand is ingeroosterd om deze dag te werken." },
+
+  "refresh_notice_before": { "other": "Actie geslaagd," },
+  "refresh_notice_link":   { "other": "herlaad de pagina" },
+  "refresh_notice_after":  { "other": "om de actuele stand te zien." },
+  "list_unavailable":      { "other": "Deze lijst kon niet worden geladen." }
 }

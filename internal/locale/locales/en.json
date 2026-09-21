@@ -86,5 +86,10 @@
 
   "legend_none":            { "other": "no one scheduled" },
   "legend_role_note":       { "other": "A day may also show red because a specific role is short-staffed — open the day for details." },
-  "day_detail_no_one_scheduled": { "other": "Nobody is scheduled to work this day." }
+  "day_detail_no_one_scheduled": { "other": "Nobody is scheduled to work this day." },
+
+  "refresh_notice_before": { "other": "Action succeeded," },
+  "refresh_notice_link":   { "other": "reload the page" },
+  "refresh_notice_after":  { "other": "to see the current state." },
+  "list_unavailable":      { "other": "This list could not be loaded." }
 }

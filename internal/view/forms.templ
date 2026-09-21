@@ -123,3 +123,29 @@ templ IndexPage(d PageData) {
 		</div>
 	}
 }
+
+// RefreshNotice reports that the action itself succeeded but the page could not be
+// brought up to date. Rendered whenever a fragment was withheld because the data
+// behind it failed to load — withholding is what keeps stale-but-true content on
+// screen instead of replacing it with content computed from nothing.
+//
+// The sentence is split across three message IDs so translators keep control of word
+// order around the link, without any markup inside the translations.
+templ RefreshNotice(year int) {
+	<div class="notice-banner" role="status">
+		{ locale.T(ctx, "refresh_notice_before") }
+		<a href={ templ.SafeURL(fmt.Sprintf("/?year=%d", year)) }>{ locale.T(ctx, "refresh_notice_link") }</a>
+		{ locale.T(ctx, "refresh_notice_after") }
+	</div>
+}
+
+// MyAbsencesUnavailable stands in for the leave list when it could not be loaded.
+// The cancel button swaps this element by outerHTML, so the section must always be
+// rendered — but never as an empty list, which would tell someone who has just
+// cancelled one day that they have no leave at all.
+templ MyAbsencesUnavailable() {
+	<section id="my-absences">
+		<h3>{ locale.T(ctx, "my_absence") }</h3>
+		<p class="list-unavailable">{ locale.T(ctx, "list_unavailable") }</p>
+	</section>
+}

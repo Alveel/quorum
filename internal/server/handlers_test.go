@@ -312,6 +312,112 @@ func TestIndex_RendersHeatmapFromCoverage(t *testing.T) {
 	assertShortDayRendered(t, string(body))
 }
 
+// --- out-of-band refresh failure ---
+
+func TestCreateAbsence_CoverageRefreshFails_ReportsSuccessWithoutFakeHeatmap(t *testing.T) {
+	st := shortDayStore()
+	st.createVac = absence.Absence{UserID: "testuser", Status: absence.StatusApproved}
+	// Fail only the second read: the first backs the denial check, the second the
+	// year-wide refresh that follows the write. Failing the first would deny the
+	// request and never reach the path under test.
+	st.absencesInRangeErrAfter = 2
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/absences",
+		"application/x-www-form-urlencoded",
+		strings.NewReader("start_date=2026-09-01&end_date=2026-09-05"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	if !strings.Contains(bodyStr, "Leave registered") {
+		t.Error("response does not report that the absence was created")
+	}
+	if cells := parseDayCells(t, bodyStr); len(cells) != 0 {
+		t.Errorf("response swapped in %d day cells built from a failed load", len(cells))
+	}
+	if !strings.Contains(bodyStr, "notice-banner") {
+		t.Error("response missing the stale-page notice")
+	}
+	// Guards the fixture itself: if the denial check stopped reading absences, the
+	// forced error would land on the first call and this test would pass for the
+	// wrong reason.
+	if st.absencesInRangeCalls != 2 {
+		t.Errorf("ListAbsencesInRange called %d times, want 2 (denial check, then refresh)", st.absencesInRangeCalls)
+	}
+}
+
+func TestCancelAbsence_ListFails_DoesNotClaimNoLeave(t *testing.T) {
+	st := shortDayStore()
+	st.myVacErr = errors.New("db error")
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	req, _ := http.NewRequest("DELETE", ts.URL+"/absences/00000000-0000-0000-0000-000000000001", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	// The swap is outerHTML on this element: without it the section leaves the page
+	// and no further cancel has a target.
+	if !strings.Contains(bodyStr, `id="my-absences"`) {
+		t.Error("response missing the my-absences swap target")
+	}
+	if !strings.Contains(bodyStr, "could not be loaded") {
+		t.Error("response does not say the list failed to load")
+	}
+	if strings.Contains(bodyStr, "No upcoming leave registered") {
+		t.Error("response claims the user has no leave, when the list merely failed to load")
+	}
+	if !strings.Contains(bodyStr, "notice-banner") {
+		t.Error("response missing the stale-page notice")
+	}
+}
+
+func TestCancelAbsence_BothLoadsFail_NotifiesOnce(t *testing.T) {
+	st := shortDayStore()
+	st.myVacErr = errors.New("db error")
+	st.absencesInRangeErr = errors.New("db error")
+	ts := newTestServer(st)
+	defer ts.Close()
+
+	req, _ := http.NewRequest("DELETE", ts.URL+"/absences/00000000-0000-0000-0000-000000000001", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	if n := strings.Count(bodyStr, "notice-banner"); n != 1 {
+		t.Errorf("stale-page notice rendered %d times, want exactly 1", n)
+	}
+	if cells := parseDayCells(t, bodyStr); len(cells) != 0 {
+		t.Errorf("response swapped in %d day cells built from a failed load", len(cells))
+	}
+	if !strings.Contains(bodyStr, `id="my-absences"`) {
+		t.Error("response missing the my-absences swap target")
+	}
+}
+
 // --- dayDetail ---
 
 func TestDayDetail_BadDate_Returns400(t *testing.T) {

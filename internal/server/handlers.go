@@ -141,24 +141,36 @@ func (h *handlers) createAbsence(w http.ResponseWriter, r *http.Request) {
 	year := start.Year()
 	yearStart := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	yearEnd := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
-	yearSnap, err := h.coverage.ForRange(r.Context(), yearStart, yearEnd)
-	if err != nil {
-		slog.Warn("oob refresh: coverage", "err", err)
+	yearSnap, covErr := h.coverage.ForRange(r.Context(), yearStart, yearEnd)
+	if covErr != nil {
+		slog.Warn("oob refresh: coverage", "err", covErr)
 	}
-	myAbsences, err2 := h.store.ListMyAbsences(r.Context(), u.ID)
-	if err2 != nil {
-		slog.Warn("oob refresh: ListMyAbsences", "err", err2)
+	myAbsences, listErr := h.store.ListMyAbsences(r.Context(), u.ID)
+	if listErr != nil {
+		slog.Warn("oob refresh: ListMyAbsences", "err", listErr)
 	}
 
-	// OOB elements appended after primary response content.
+	// OOB elements appended after primary response content. A fragment whose data
+	// failed to load is withheld rather than rendered from nothing: an omitted OOB
+	// swap leaves the previous, internally-consistent content on screen, where a
+	// rendered one would replace it with a heatmap computed from an empty roster.
 	if err := view.FormSuccess().Render(r.Context(), w); err != nil {
 		slog.Debug("render", "handler", "createAbsence", "err", err)
 	}
-	if err := view.HeatmapOOB(buildHeatmap(year, yearSnap.Days, yearSnap.Settings.MinPresent)).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "handler", "createAbsence", "err", err)
+	if covErr == nil {
+		if err := view.HeatmapOOB(buildHeatmap(year, yearSnap.Days, yearSnap.Settings.MinPresent)).Render(r.Context(), w); err != nil {
+			slog.Debug("render", "handler", "createAbsence", "err", err)
+		}
 	}
-	if err := view.MyAbsencesOOB(myAbsences).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "handler", "createAbsence", "err", err)
+	if listErr == nil {
+		if err := view.MyAbsencesOOB(myAbsences).Render(r.Context(), w); err != nil {
+			slog.Debug("render", "handler", "createAbsence", "err", err)
+		}
+	}
+	if covErr != nil || listErr != nil {
+		if err := view.RefreshNotice(year).Render(r.Context(), w); err != nil {
+			slog.Debug("render", "handler", "createAbsence", "err", err)
+		}
 	}
 }
 
@@ -174,23 +186,38 @@ func (h *handlers) cancelAbsence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
-	yearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
-	yearEnd := time.Date(now.Year(), 12, 31, 0, 0, 0, 0, time.UTC)
-	snap, err := h.coverage.ForRange(r.Context(), yearStart, yearEnd)
-	if err != nil {
-		slog.Warn("oob refresh: coverage", "err", err)
+	year := time.Now().Year()
+	yearStart := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
+	yearEnd := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
+	snap, covErr := h.coverage.ForRange(r.Context(), yearStart, yearEnd)
+	if covErr != nil {
+		slog.Warn("oob refresh: coverage", "err", covErr)
 	}
-	myAbsences, err := h.store.ListMyAbsences(r.Context(), u.ID)
-	if err != nil {
-		slog.Warn("oob refresh: ListMyAbsences", "err", err)
+	myAbsences, listErr := h.store.ListMyAbsences(r.Context(), u.ID)
+	if listErr != nil {
+		slog.Warn("oob refresh: ListMyAbsences", "err", listErr)
 	}
 
-	if err := view.MyAbsences(myAbsences).Render(r.Context(), w); err != nil {
+	// The cancel button swaps #my-absences by outerHTML, so this element is always
+	// rendered — but as an explicit "couldn't load" when the query failed, never as an
+	// empty list, which would tell someone who just cancelled one day that they have
+	// no leave at all.
+	if listErr != nil {
+		if err := view.MyAbsencesUnavailable().Render(r.Context(), w); err != nil {
+			slog.Debug("render", "handler", "cancelAbsence", "err", err)
+		}
+	} else if err := view.MyAbsences(myAbsences).Render(r.Context(), w); err != nil {
 		slog.Debug("render", "handler", "cancelAbsence", "err", err)
 	}
-	if err := view.HeatmapOOB(buildHeatmap(now.Year(), snap.Days, snap.Settings.MinPresent)).Render(r.Context(), w); err != nil {
-		slog.Debug("render", "handler", "cancelAbsence", "err", err)
+	if covErr == nil {
+		if err := view.HeatmapOOB(buildHeatmap(year, snap.Days, snap.Settings.MinPresent)).Render(r.Context(), w); err != nil {
+			slog.Debug("render", "handler", "cancelAbsence", "err", err)
+		}
+	}
+	if covErr != nil || listErr != nil {
+		if err := view.RefreshNotice(year).Render(r.Context(), w); err != nil {
+			slog.Debug("render", "handler", "cancelAbsence", "err", err)
+		}
 	}
 }
 

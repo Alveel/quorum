@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,22 +16,28 @@ type fakeStore struct {
 	settingsErr        error
 	absencesInRange    []absence.Absence
 	absencesInRangeErr error
-	myAbsences         []absence.Absence
-	myVacErr           error
-	allActive          []absence.Absence
-	allActiveErr       error
-	createVac          absence.Absence
-	createVacErr       error
-	createOvr          absence.Absence
-	createOvrErr       error
-	cancelErr          error
-	updateSettingErr   error
-	upsertErr          error
-	upsertCalled       bool
-	upsertID           string
-	upsertEmail        string
-	hasOverlap         bool
-	hasOverlapErr      error
+	// absencesInRangeErrAfter, when > 0, fails every ListAbsencesInRange call from the
+	// Nth onward (1-based). createAbsence reads the method twice — once for the denial
+	// check, once for the refresh that follows the write — so a test needs to fail the
+	// second without failing the first.
+	absencesInRangeErrAfter int
+	absencesInRangeCalls    int
+	myAbsences              []absence.Absence
+	myVacErr                error
+	allActive               []absence.Absence
+	allActiveErr            error
+	createVac               absence.Absence
+	createVacErr            error
+	createOvr               absence.Absence
+	createOvrErr            error
+	cancelErr               error
+	updateSettingErr        error
+	upsertErr               error
+	upsertCalled            bool
+	upsertID                string
+	upsertEmail             string
+	hasOverlap              bool
+	hasOverlapErr           error
 
 	roster                          []absence.Member
 	rosterErr                       error
@@ -68,6 +75,10 @@ func (f *fakeStore) UpdateSetting(_ context.Context, _ string, _ any, _ string) 
 }
 
 func (f *fakeStore) ListAbsencesInRange(_ context.Context, _, _ time.Time) ([]absence.Absence, error) {
+	f.absencesInRangeCalls++
+	if f.absencesInRangeErrAfter > 0 && f.absencesInRangeCalls >= f.absencesInRangeErrAfter {
+		return nil, errors.New("db error")
+	}
 	return f.absencesInRange, f.absencesInRangeErr
 }
 
