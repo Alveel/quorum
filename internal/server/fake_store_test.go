@@ -190,3 +190,38 @@ func oneRoleRoster() []absence.Member {
 func oneRole() []absence.Role {
 	return []absence.Role{{ID: 1, Name: "role1", MinPresent: 0}}
 }
+
+// shortDay is the fixture day that shortDayStore leaves below the global minimum.
+// A Wednesday, so every Mon-Fri member in the roster is scheduled on it.
+const shortDay = "2026-07-01"
+
+var shortDayDate = time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+
+// shortDayStore returns a fake with every coverage input populated: 15 Mon-Fri members,
+// a global minimum of 8, and 8 of them absent on shortDay. That leaves the day at 7/15
+// present — below the minimum, so it renders red.
+//
+// Tests assert on that day to show the handler rendered a heatmap from real coverage.
+// A fake missing any of these inputs renders the day differently; see
+// assertShortDayRendered.
+func shortDayStore() *fakeStore {
+	roster := oneRoleRoster()
+	absences := make([]absence.Absence, 0, 8)
+	for _, m := range roster[1:9] { // 8 absentees; testuser at index 0 stays present
+		absences = append(absences, absence.Absence{
+			ID:        uuid.New(),
+			UserID:    m.ID,
+			UserName:  m.ID,
+			StartDate: shortDayDate,
+			EndDate:   shortDayDate,
+			Status:    absence.StatusApproved,
+		})
+	}
+	return &fakeStore{
+		settings:        absence.Settings{MinPresent: 8},
+		member:          testUserMember(),
+		roster:          roster,
+		roles:           oneRole(),
+		absencesInRange: absences,
+	}
+}

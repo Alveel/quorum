@@ -104,24 +104,21 @@ func TestCreateAbsence_ThresholdDenied_Returns422(t *testing.T) {
 }
 
 func TestCreateAbsence_Success_Returns200WithOOBSwaps(t *testing.T) {
-	st := &fakeStore{
-		settings: absence.Settings{MinPresent: 8},
-		member:   testUserMember(),
-		roster:   oneRoleRoster(),
-		roles:    oneRole(),
-		createVac: absence.Absence{
-			UserID:    "testuser",
-			StartDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
-			EndDate:   time.Date(2026, 7, 5, 0, 0, 0, 0, time.UTC),
-			Status:    absence.StatusApproved,
-		},
+	// Request a range clear of shortDay, so this stays a success case: booking over
+	// the fixture's short day would be denied on coverage grounds.
+	st := shortDayStore()
+	st.createVac = absence.Absence{
+		UserID:    "testuser",
+		StartDate: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC),
+		EndDate:   time.Date(2026, 9, 5, 0, 0, 0, 0, time.UTC),
+		Status:    absence.StatusApproved,
 	}
 	ts := newTestServer(st)
 	defer ts.Close()
 
 	resp, err := http.Post(ts.URL+"/absences",
 		"application/x-www-form-urlencoded",
-		strings.NewReader("start_date=2026-07-01&end_date=2026-07-05"))
+		strings.NewReader("start_date=2026-09-01&end_date=2026-09-05"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,6 +137,7 @@ func TestCreateAbsence_Success_Returns200WithOOBSwaps(t *testing.T) {
 	if !strings.Contains(bodyStr, `id="my-absences"`) {
 		t.Error("response missing my-absences section")
 	}
+	assertShortDayRendered(t, bodyStr)
 }
 
 func TestCreateAbsence_StoreError_Returns500(t *testing.T) {
@@ -272,7 +270,7 @@ func TestCancelAbsence_StoreError_Returns500(t *testing.T) {
 }
 
 func TestCancelAbsence_Success_RendersFragments(t *testing.T) {
-	ts := newTestServer(&fakeStore{})
+	ts := newTestServer(shortDayStore())
 	defer ts.Close()
 
 	req, _ := http.NewRequest("DELETE", ts.URL+"/absences/00000000-0000-0000-0000-000000000001", nil)
@@ -292,6 +290,26 @@ func TestCancelAbsence_Success_RendersFragments(t *testing.T) {
 	if !strings.Contains(bodyStr, `id="heatmap"`) {
 		t.Error("response missing heatmap OOB swap")
 	}
+	assertShortDayRendered(t, bodyStr)
+}
+
+// --- index ---
+
+func TestIndex_RendersHeatmapFromCoverage(t *testing.T) {
+	ts := newTestServer(shortDayStore())
+	defer ts.Close()
+
+	// Pin the year: index otherwise renders whichever year the clock says.
+	resp, err := http.Get(ts.URL + "/?year=2026")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	assertShortDayRendered(t, string(body))
 }
 
 // --- dayDetail ---
