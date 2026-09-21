@@ -1,6 +1,6 @@
 services:
   db:
-    image: dhi.io/postgres:18-alpine3.22
+    image: registry.access.redhat.com/hi/postgresql:18
     environment:
       POSTGRES_USER: quorum
       POSTGRES_PASSWORD: quorum
