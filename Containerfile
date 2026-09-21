@@ -1,5 +1,5 @@
 # ── Build stage ───────────────────────────────────────────────────────────────
-ARG GO_IMAGE=registry.access.redhat.com/hi/go:1.26-builder
+ARG GO_IMAGE=registry.access.redhat.com/hi/go:1.27-builder
 ARG UBI_IMAGE=registry.access.redhat.com/ubi10/ubi-micro:10.2-1787684489
 FROM ${GO_IMAGE} AS builder
 
