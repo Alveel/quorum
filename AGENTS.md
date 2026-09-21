@@ -13,9 +13,11 @@ Small internal tool, ~15-person team. Register leave, avoid coverage gaps. Each 
 ## Common commands
 ```sh
 make dev          # runs postgres via podman-compose + the app on :8080 (DEV_USER bypass)
-make test         # go test ./...
+make test         # go test ./... — does NOT include integration tests (build tag)
+make test-integration  # -tags=integration ./internal/store/... — needs a DB, TRUNCATES it
 make lint         # golangci-lint run
-make templ        # regenerate templ files (run after editing *.templ)
+make templ        # regenerate templ files (run after editing *.templ; commit the
+                  # generated _templ.go alongside — CI checks freshness)
 make migrate      # apply migrations against $DATABASE_URL
 make build        # static binary into ./bin/server
 make image        # podman build of the runtime image
@@ -37,6 +39,8 @@ Admin role = group claim: user is admin iff any `X-Forwarded-Groups` value is in
 ### One `Coverage()` function, three consumers
 Heatmap coloring, the absence-request denial check (`OffendingDays`), and the admin role-feasibility warning (`FeasibilityWarnings`) **must** all read from the same `Coverage(roster, absences, holidays, roles, globalMinPresent, from, to) map[time.Time]DayCoverage` in `internal/absence`. Divergence = users see "green" days that are actually blocked, or vice versa. Keep a single shared function — don't recompute presence counts anywhere else.
 
+Handlers don't call `Coverage` directly: `internal/coverage` loads every input (settings, roster, roles, holidays, absences) and returns a `Snapshot` for a date range. `ForRange(ctx, from, to, extra...)` also merges not-yet-persisted absences, which is how the denial check evaluates a candidate — `Snapshot.Absences` deliberately excludes them, so nothing renders an absence that isn't saved. Add new callers there, not by re-assembling `Coverage`'s arguments.
+
 `Coverage` also encodes two asymmetries worth knowing: a role/global count at *exactly* its minimum renders red (`Failing`, `<=`) but is still approvable (`OffendingDays`, strict `<`) — matches the pre-role-quota threshold behavior. And a day nobody's scheduled on (holiday, or off everyone's weekly pattern) is `NoOneScheduled`/color `"none"`, never red — `Expected == 0` must not fall through to the red-at-zero path.
 
 ### Overrides change status, not counts
@@ -45,11 +49,30 @@ Admin overrides set `absence.status = 'overridden'`, write `audit_log` row. Over
 ### Migrations on startup
 App applies pending migrations on boot before serving traffic. Don't run separate `Job`; chart relies on single Deployment. If migrations need gating (e.g. destructive change), introduce separate sub-command before adding job infrastructure.
 
+### Failed loads are withheld, never rendered
+A fragment whose data failed to load is **not** rendered from a zero value. A nil roster makes `Coverage` report every day as `NoOneScheduled`; a failed settings read drops the minimum to 0, which colors days more favourably than the truth. Both produce a confident-looking, wrong heatmap at HTTP 200. The out-of-band tails omit the fragment instead and render `view.RefreshNotice`, leaving the stale-but-consistent DOM in place. Keep that property when touching them.
+
+Note `cancelAbsence` cannot simply omit: its button swaps `#my-absences` by `outerHTML`, so dropping the element removes the section and strands later cancels. It renders `view.MyAbsencesUnavailable` in that element instead.
+
+## Traps that have already cost time
+
+### Locale files are hand-formatted — never round-trip them
+`internal/locale/locales/{en,nl}.json` are one line per key, `{ "other": ... }` column-aligned, grouped by blank lines. Loading and re-dumping via any JSON library reformats all ~80 entries and buries a 4-line change in a 300-line diff. Insert text directly, padding new keys to the widest in their group.
+
+### A missing translation fails silently
+`locale.T` returns the *message ID* when a lookup misses, rather than erroring. A key added to `en.json` and forgotten in `nl.json` renders as a raw identifier like `refresh_notice_link` on the Dutch site, with nothing failing and no test catching it. Always add to both.
+
+### Integration tests are invisible to `make test` and to CI
+They're behind `//go:build integration`, so `go test ./...` doesn't even compile them — a compile break there goes unnoticed. **Neither pipeline runs them**, so `internal/store` changes are only ever verified by someone running `make test-integration` locally. Check compilation with `go vet -tags=integration ./internal/store/...`.
+
+Two further traps: `go test` caching can't see database state, so a `cached` result proves nothing — use `-count=1`. And `truncateAll` wipes the dev database, so ask before running.
+
 ## Layout
 - `cmd/server/` — main; wires config, store, server
 - `internal/config` — env loading
 - `internal/auth` — header parsing, admin check, dev bypass
 - `internal/absence` — domain types, roster/role/holiday types, single `Coverage()` function
+- `internal/coverage` — loads `Coverage()`'s inputs and computes it for a date range; the seam handlers use
 - `internal/holidaysync` — offline public-holiday calendar sync (rickar/cal), kept out of `internal/absence` so the domain package stays dependency-free
 - `internal/store` — Postgres queries
 - `internal/server` — chi router, middleware, handlers
@@ -60,9 +83,13 @@ App applies pending migrations on boot before serving traffic. Don't run separat
 - `deploy/helm/quorum/` — chart with app + oauth-proxy sidecar
 
 ## CI/CD
-- GitHub Actions: `.github/workflows/ci.yaml` — jobs: `test`, `lint`, `build-image` (main only)
+Two remotes, two pipelines, same checks. `origin` = GitLab (`git.nationaalarchief.net/akik/quorum`) — **canonical**, holds the issues and merge requests. `github` = mirror (`Alveel/quorum`).
+- GitLab CI: `.gitlab-ci.yml` — `commit-lint`, `test`, `lint`, `helm-lint`, `build-image`, `publish-chart`, `renovate`
+- GitHub Actions: `.github/workflows/ci.yaml` — same job set
 - Image pushed to `ghcr.io/alveel/quorum` tagged `:latest` + `:<sha>`
 - Renovate (`renovate.json`) tracks Go modules, Actions versions, Containerfile base images
+- Neither pipeline runs `make test-integration` — see the trap above
+- The two remotes drift; check which one a branch tracks before assuming a push reached the pipeline you mean
 
 ## Deployment notes
 - `ServiceAccount` carries `serviceaccounts.openshift.io/oauth-redirectreference.primary` pointing at Route — without it, SA can't act as OAuth client.

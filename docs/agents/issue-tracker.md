@@ -13,8 +13,8 @@ Issues and specs for this repo live as GitLab issues. Use the [`glab`](https://g
 - **Merge requests**: GitLab calls PRs "merge requests". Use `glab mr create`, `glab mr view`, `glab mr note`, etc., the same shape as `gh pr ...` with `mr` in place of `pr` and `note`/`--message` in place of `comment`/`--body`.
 
 Infer the repo from `git remote -v`; `glab` does this automatically when run inside a
-clone. This clone also has a GitHub mirror on `origin`, but `glab` picks the GitLab
-remote (`na`, `git.nationaalarchief.net/akik/quorum`) on its own — no `-R` needed.
+clone. `origin` is the GitLab remote (`git.nationaalarchief.net/akik/quorum`); `github`
+is a mirror. No `-R` needed.
 
 ## Merge requests as a triage surface
 
