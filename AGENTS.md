@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-Guidance to Claude Code (claude.ai/code) for this repo.
+Guidance for coding agents working in this repo.
 
 ## What this is
 Small internal tool, ~15-person team. Register leave, avoid coverage gaps. Each member has a weekly working-day pattern and holds one or more admin-defined **roles**, each with its own minimum-present quota; global minimum-present applies too. Each calendar day colored by worst-of (global vs every role) coverage ratio (green → yellow → orange → red), or a distinct "none" state on a day nobody's scheduled (holiday, or off-pattern). Registration pushing any day's global or role coverage strictly below its minimum = **hard-denied**; **admin** can override. A member with zero roles assigned is blocked from registering leave until they configure themselves via `/settings`.
@@ -107,3 +107,17 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes` for code review.
 3. Use `get_affected_flows` to understand impact.
 4. Use `query_graph` pattern="tests_for" to check coverage.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitLab Issues on the `na` remote (`git.nationaalarchief.net/akik/quorum`), via the `glab` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary; label strings equal the role names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
